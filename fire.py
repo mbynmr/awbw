@@ -1,19 +1,20 @@
 import numpy as np
 
 
-def fire(unit1, unit2):
+def fire(unit1, unit2, counter=True):
     dmg = damage_calc(unit1, unit2)
     unit1['ammo'] = unit1['ammo'] - 1
     unit2['hp'] = unit2['hp'] - dmg
 
     if unit2['hp'] < 0:  # outside hp range (0 to 99 is alive. 90-99 is 10hp, 0-9hp is 1hp)
         return unit1, None  # without counter-attack
-    dmg = damage_calc(unit2, unit1)
-    unit2['ammo'] = unit2['ammo'] - 1
-    unit1['hp'] = unit1['hp'] - dmg
+    if counter:
+        dmg = damage_calc(unit2, unit1)
+        unit2['ammo'] = unit2['ammo'] - 1
+        unit1['hp'] = unit1['hp'] - dmg
 
-    if unit1['hp'] < 0:
-        return None, unit2  # counter-attack destroys attacker
+        if unit1['hp'] < 0:
+            return None, unit2  # counter-attack destroys attacker
     return unit1, unit2  # no destruction
 
 
@@ -23,7 +24,7 @@ def damage_calc(u1, u2):
         raise ValueError(f"attack not valid. put an extra check in somewhere to avoid"
                          f"{u1['type']} with ammo {u1['ammo']} on {u2['type']}")
     damage = (base * u1['Av'] / 100) + (np.random.choice(u1['L'][1] - u1['L'][0]) - u1['L'][0])  # attack value
-    hp = int((u1['hp'] + 1) / 10) / 10  # hp 'out of 10' divided by 10: full unit is 1x damage, half hp is 0.5x
+    hp = int(1 + u1['hp'] / 10) / 10  # hp 'out of 10' divided by 10: full unit is 1x damage, half hp is 0.5x
     defence = (200 - u2['Dv'] + (u2['Dtr'] * int((u2['hp'] + 1) / 10))) / 100  # defence multiplier
     # is rounded up to the nearest interval of 0.05 then rounded down to the nearest integer
     # todo negative luck: check damage. sonja inf on megatank could heal it?

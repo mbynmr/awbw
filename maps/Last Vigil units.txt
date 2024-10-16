@@ -1,1 +1,1 @@
-purplelightning, inf, 2, 1, 3
+purplelightning, inf, 2, 1

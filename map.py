@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # from tqdm import tqdm
 
 
@@ -27,7 +27,7 @@ def display_map():
     # plt.show()
 
 
-def convert_id_to_details(id):
+def convert_id_to_details(idn):
     TS_terrainIdToName = {
         "1": "plain", "2": "mountain", "3": "wood", "4": "hriver", "5": "vriver", "6": "criver", "7": "esriver",
         "8": "swriver", "9": "wnriver", "10": "neriver", "11": "eswriver", "12": "swnriver", "13": "wneriver",
@@ -77,7 +77,7 @@ def convert_id_to_details(id):
         'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy', 'purplelightning',
         'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
     ]
-    s = TS_terrainIdToName[str(id)]
+    s = TS_terrainIdToName[str(idn)]
     owned_by = 0
     for i, e in enumerate(armies):
         if e in s:
@@ -123,10 +123,10 @@ def convert_id_to_details(id):
     for i, e in enumerate(all_terrain):
         if e in s:
             return owned_by, *terrain_details[i]  # exit asap :>
-    raise ValueError(f"couldn't find terrain with id number {id}")
+    raise ValueError(f"couldn't find terrain with id number {idn}")
 
 
-def convert_id_to_details_old(id):
+def convert_id_to_details_old(idn):
     TS_terrainIdToName = {
         "1": "plain", "2": "mountain", "3": "wood", "4": "hriver", "5": "vriver", "6": "criver", "7": "esriver",
         "8": "swriver", "9": "wnriver", "10": "neriver", "11": "eswriver", "12": "swnriver", "13": "wneriver",
@@ -199,7 +199,7 @@ def convert_id_to_details_old(id):
         'mountain': 3, 'hq': 0
     }  # 0: road, 1: plain, 2: wood, 3: river, 4: shoal, 5: sea, 6: pipe
 
-    s = TS_terrainIdToName[str(id)]
+    s = TS_terrainIdToName[str(idn)]
 
     ownedby = 0
     for e in armies:
