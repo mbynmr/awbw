@@ -79,13 +79,13 @@ class Engine:
         self.von_bolt_missiles = []  # [[turn popped, (position popped)], [turn, (pos)], [turn, (pos)], ...] missiles
 
         # figure display
-        my_dpi = 102
-        # figsize=(1500 / my_dpi, 1000 / my_dpi), dpi=my_dpi
-        # fig_bg, self.ax_bg = plt.subplots(figsize=(1077 / my_dpi, 839 / my_dpi), dpi=my_dpi)
-        fig_fg, self.ax_fg = plt.subplots(figsize=(1077 / my_dpi, 839 / my_dpi), dpi=my_dpi)  # coordinate space axes
-        # self.canvas_bg = FigureCanvasTkAgg(fig_bg, master=self.w)
-        self.canvas_fg = FigureCanvasTkAgg(fig_fg, master=self.w)
-
+        self.my_dpi = 102
+        # self.figdims = [662, 515]  # *2 works for this map ig [1324, 1030] with max of roughly [1500, 1000]
+        self.figdims = [662 * 2, 515 * 2]
+        self.fig, self.ax = plt.subplots(figsize=(self.figdims[0] / self.my_dpi, self.figdims[1] / self.my_dpi),
+                                         dpi=self.my_dpi)
+        # self.ax.set(frame_on=False, bbox_inches='tight')
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.w)
         # imageHand = Image.open('hand.png')
         # imageHead.paste(imageHand, (20, 40), imageHand)
         # # Convert the Image object into a TkPhoto object
@@ -117,19 +117,19 @@ class Engine:
         self.print_box.place(relx=0.01, rely=0.02)
         self.Writer = Writer(self.print_box)
 
-        self.w.after(60, self.update)
+        # self.w.after(60, self.update)
+        self.update()
         # self.load_map()
         self.w.mainloop()
 
     def widgets(self):
         parent = self.w
         tk.Button(parent, text='Close', command=self.close).place(relx=0.925, rely=0.925)
-        # self.canvas_bg.get_tk_widget().place(relx=0.4, rely=0.5, anchor=CENTER)
-        self.canvas_fg.get_tk_widget().place(relx=0.4, rely=0.5, anchor=CENTER)
+        self.canvas.get_tk_widget().place(relx=0.4, rely=0.5, anchor=CENTER)
         # fig.canvas.callbacks.connect('pick_event', on_pick)
-        # self.canvas_fg.callbacks.connect('pick_event', on_pick)
-        # self.fig_fg.set_facecolor('none')
-        # self.ax_fg.set_facecolor('none')
+        # self.canvas.callbacks.connect('pick_event', on_pick)
+        # self.fig.set_facecolor('none')
+        # self.ax.set_facecolor('none')
 
     def game_widgets(self, parent):
         tk.Label(parent, text="Map path").place(relx=0.05, rely=0.01)
@@ -219,41 +219,44 @@ class Engine:
         self.p2cb['values'] = s
 
         # unit visual display
+        # [14, 18]
+        # 0-13 down, 0-17 across
         if dims is not None:
+            r = 1 / dims[1]
+            # might be bottom-left centred. not sure
             for unit in self.p1['units']:
                 img = mpimg.imread(f"units/pc{name_to_filename(unit['type'])}.gif")
-                # img = mpimg.imread("units/pcrocket.gif")
-                self.ax_fg[pos_to_ax(unit['position'], dims)].imshow(img)
+                self.fig.add_axes([r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
+                                  ).imshow(img)
+                plt.gca().axis("off")
+                # plt.setp(plt.gca(), xticks=[], yticks=[])  # hide ticks but keep white space and black outline
+                # plt.gca().patch.set_alpha(0)  # hide white space
             for unit in self.p2['units']:
                 img = mpimg.imread(f"units/bd{name_to_filename(unit['type'])}.gif")
-                self.ax_fg[pos_to_ax(unit['position'], dims)].imshow(img)
-            # self.canvas_bg.draw()
-            self.canvas_fg.draw()
+                self.fig.add_axes([r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
+                                  ).imshow(img)
+                plt.gca().axis("off")
+            self.canvas.draw()
 
         # print('updated')
         # self.w.after(60, self.update)  # only update after something happens. not like this plz :>
 
     def load_map(self):
         self.map_info = load_map(self.map_path.get())
+        # self.fig.set_figwidth(1077 / self.my_dpi)  # todo auto do these dims?
+        # self.fig.set_figheight(839 / self.my_dpi)
         # ownedby, stars, repair, production, access, special
-        # self.ax_bg.imshow(mpimg.imread(self.map_path.get().split('.txt')[0] + '.png'))
-        # self.ax_bg.axis("off")
-        dims = self.map_info[0].shape
         # self.ax_bg.set_xlim([0, dims[0]])
         # self.ax_bg.set_ylim([0, dims[1]])
-        # self.canvas_bg.draw()
+        plt.subplots_adjust(wspace=0, hspace=0)
+        plt.tight_layout()
+        self.fig.add_axes([0, 0, 1, 1]).imshow(mpimg.imread(self.map_path.get().split('.txt')[0] + '.png'))
+        plt.setp(plt.gca(), xticks=[], yticks=[])  # hide axes
         # print('background displayed!')
+        self.ax.axis("off")
 
         self.load_map_units()
-        self.ax_fg = [plt.subplot(dims[0], dims[1], i + 1) for i in range(np.product(dims))]
-        for a in self.ax_fg:
-            a.axis("off")
-            # a.set_xticklabels([])
-            # a.set_yticklabels([])
-            # a.patch.set_alpha(0.5)
-            # a.set_aspect('equal')  # not needed bcus im already calcing a rectangle filled with squares
-        plt.subplots_adjust(wspace=0, hspace=0)
-        self.update(dims)
+        self.update(self.map_info[0].shape)
 
     def load_map_units(self):
         # wipe units
@@ -264,7 +267,7 @@ class Engine:
         with open(self.map_path.get().split('.txt')[0] + ' units.txt') as file:
             for line in file:
                 army, typ, x, y = line.split(', ')
-                pos = (int(x), int(y))  # todo tuple not list, b careful
+                pos = (int(y), int(x))  # todo tuple not list, b careful
                 if self.p1['army'] == army:
                     self.p1['units'].append(unit_maker(army, typ, self.p1, pos,
                                                        self.map_info[1][pos], self.map_info[5][pos]))
@@ -342,10 +345,6 @@ class Writer:
 
     def close(self):
         sys.stdout.write = self.writestore
-
-
-def pos_to_ax(pos, dim):
-    return int(pos[1] * dim[1] + pos[0])
 
 
 def on_pick(event):
