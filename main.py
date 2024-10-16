@@ -1,5 +1,4 @@
 # from testing import unpack
-from map import load_map
 from engine import Engine
 
 

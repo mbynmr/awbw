@@ -15,15 +15,17 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg  # , NavigationT
 from co import co_maker, activate_or_deactivate_power
 from unit import unit_maker, name_to_filename
 from map import load_map
+from fire import damage_calc_bounds
 
 
 # todo sturm & lash movement
-# todo snow & rain
+# todo snow & rain movement
 # todo missiles (CO and player). sturm needs centred on a unit, others don't and scan top left: farright-down1-r-d-r-d
 # todo captures & sami caps
 # todo sasha +100 per funds property (not labs, com, or 0 funds games lol)
 # todo sasha SCOP turns 0.5*damage to funds
 # todo charge meters!
+# todo pipseam attacks & destruction
 # todo damage:
 #  check for ['apc', 'bboat', 'bbomb', 'lander', 'tcopter'] in attacks bcus 0 luck
 #  check a 0 base damage isn't gaining luck as well if they can't physically fire. out of ammo 'aa' vs tank.
@@ -60,10 +62,14 @@ class Engine:
         # co & stats
         self.p1 = co_maker('jake')
         self.p1['army'] = 'purplelightning'
-        self.p1funds = tk.IntVar(self.w, value=3000)  # todo
+        self.p1funds = tk.IntVar(self.w, value=0)
         self.p1unitc = tk.IntVar(self.w, value=0)
         self.p1unitv = tk.IntVar(self.w, value=0)
         self.p1income = tk.IntVar(self.w, value=0)
+        self.p1charge = tk.IntVar(self.w, value=0)
+        self.p1copcost = tk.IntVar(self.w, value=0)
+        self.p1scopcost = tk.IntVar(self.w, value=0)
+        self.p1combo = tk.StringVar(self.w)
 
         self.p2 = co_maker('jess')
         self.p2['army'] = 'yellowcomet'
@@ -72,7 +78,12 @@ class Engine:
         self.p2unitc = tk.IntVar(self.w, value=0)
         self.p2unitv = tk.IntVar(self.w, value=0)
         self.p2income = tk.IntVar(self.w, value=0)
+        self.p2charge = tk.IntVar(self.w, value=0)
+        self.p2copcost = tk.IntVar(self.w, value=0)
+        self.p2scopcost = tk.IntVar(self.w, value=0)
+        self.p2combo = tk.StringVar(self.w)
 
+        self.costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
         self.turns = 0
         self.days = tk.IntVar(self.w, value=int(self.turns / 2) + 1)
         self.map_info = ([], [], [], [], [], [])  # ownedby, stars, repair, production, access, special
@@ -105,6 +116,12 @@ class Engine:
         self.game_widgets(game_tab)
         co_tab = tk.Frame(details_nb)
         details_nb.add(co_tab, text='CO & unit')
+        self.p1cop = tk.Button(co_tab, text='COP', command=self.p1COP)
+        self.p1scop = tk.Button(co_tab, text='SCOP', command=self.p1SCOP)
+        self.p2cop = tk.Button(co_tab, text='COP', command=self.p2COP)
+        self.p2scop = tk.Button(co_tab, text='SCOP', command=self.p2SCOP)
+        self.p1cb = tk.ttk.Combobox(co_tab, width=23, textvariable=self.p1combo)
+        self.p2cb = tk.ttk.Combobox(co_tab, width=23, textvariable=self.p2combo)
         self.co_widgets(co_tab)
         page3 = tk.Frame(details_nb)
         details_nb.add(page3, text='debug')
@@ -118,7 +135,7 @@ class Engine:
         self.Writer = Writer(self.print_box)
 
         # self.w.after(60, self.update)
-        self.update()
+        self.update(False)  # don't load map & units in update bcus it isn't loaded yet.
         # self.load_map()
         self.w.mainloop()
 
@@ -126,7 +143,7 @@ class Engine:
         parent = self.w
         tk.Button(parent, text='Close', command=self.close).place(relx=0.925, rely=0.925)
         self.canvas.get_tk_widget().place(relx=0.4, rely=0.5, anchor=CENTER)
-        # fig.canvas.callbacks.connect('pick_event', on_pick)
+        self.fig.canvas.mpl_connect('button_press_event', on_pick)
         # self.canvas.callbacks.connect('pick_event', on_pick)
         # self.fig.set_facecolor('none')
         # self.ax.set_facecolor('none')
@@ -142,7 +159,9 @@ class Engine:
         tk.Label(parent, textvariable=self.days, width=4, anchor="w").place(relx=0.3, rely=0.275)
 
     def co_widgets(self, parent):
+        #todo check anchor=e and w for all of them. need to add a number rly to check!
         # "CO controls go here (power buttons + bars + details ig)
+        tk.ttk.Separator(parent, orient='vertical').place(relx=0.5, rely=0, relwidth=0.001, relheight=0.35)
 
         armies = {
             'neutral': 'n', 'amberblaze': 'ab', 'blackhole': 'bh', 'bluemoon': 'bm', 'browndesert': 'bd',
@@ -154,41 +173,65 @@ class Engine:
         tk.Label(parent, text=self.p1['name'], anchor="w").place(relx=0.05, rely=0.02)
         tk.Label(parent, text=armies[self.p1['army']], anchor="w").place(relx=0.05, rely=0.05)
         tk.Label(parent, textvariable=self.p1funds, anchor="w").place(relx=0.05, rely=0.08)
-        tk.Label(parent, textvariable=self.p1unitc, width=8, anchor="e").place(relx=0.30, rely=0.02)
-        tk.Label(parent, textvariable=self.p1unitv, width=8, anchor="e").place(relx=0.30, rely=0.05)
-        tk.Label(parent, textvariable=self.p1income, width=8, anchor="e").place(relx=0.30, rely=0.08)
-        tk.ttk.Separator(parent, orient='vertical').place(relx=0.5, rely=0, relwidth=0.2, relheight=0.11)
-        tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.11, relwidth=1, relheight=0.2)
+        tk.Label(parent, textvariable=self.p1unitc, width=7, anchor="e").place(relx=0.30, rely=0.02)
+        tk.Label(parent, textvariable=self.p1unitv, width=7, anchor="e").place(relx=0.30, rely=0.05)
+        tk.Label(parent, textvariable=self.p1income, width=7, anchor="e").place(relx=0.30, rely=0.08)
         tk.Label(parent, text=self.p2['name'], width=6, anchor="w").place(relx=0.52, rely=0.02)
         tk.Label(parent, text=armies[self.p2['army']], width=6, anchor="w").place(relx=0.52, rely=0.05)
-        tk.Label(parent, textvariable=self.p2funds, width=8, anchor="w").place(relx=0.52, rely=0.08)
-        tk.Label(parent, textvariable=self.p2unitc, width=8, anchor="e").place(relx=0.80, rely=0.02)
-        tk.Label(parent, textvariable=self.p2unitv, width=8, anchor="e").place(relx=0.80, rely=0.05)
-        tk.Label(parent, textvariable=self.p2income, width=8, anchor="e").place(relx=0.80, rely=0.08)
-        # justify='center'
-        # , anchor="w"
-        # , sticky="w"
-        # https://www.reddit.com/r/learnpython/comments/11p94d5/tkinter_how_can_i_align_the_text_inside_a_label/
+        tk.Label(parent, textvariable=self.p2funds, width=7, anchor="w").place(relx=0.52, rely=0.08)
+        tk.Label(parent, textvariable=self.p2unitc, width=7, anchor="e").place(relx=0.80, rely=0.02)
+        tk.Label(parent, textvariable=self.p2unitv, width=7, anchor="e").place(relx=0.80, rely=0.05)
+        tk.Label(parent, textvariable=self.p2income, width=7, anchor="e").place(relx=0.80, rely=0.08)
+        tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.11, relwidth=1, relheight=0.001)
 
-        # unit list to select from goes here").place(relx=0.25, rely=0.45)
-        # unit controls + details go here").place(relx=0.25, rely=0.45)
-        # production controls go here").place(relx=0.25, rely=0.85)
-        # tk.Button(parent, text='COP', command=self.COP).place(relx=0.01, rely=0.335)
-        # tk.Button(parent, text='SCOP', command=self.SCOP).place(relx=0.11, rely=0.335)
-        # tk.ttk.Separator(parent, orient='vertical').place(relx=0.5, rely=0.11, relwidth=0.2, relheight=0.89)
-        self.p1combo = tk.StringVar()  # move this plz ty
-        self.p1cb = tk.ttk.Combobox(parent, width=23, textvariable=self.p1combo)
+        # COP and SCOP buttons with number above button
+        tk.Label(parent, textvariable=self.p1charge, width=7, anchor="w").place(relx=0.05, rely=0.13)
+        tk.Label(parent, textvariable=self.p1copcost, width=7, anchor="w").place(relx=0.05, rely=0.17)
+        tk.Label(parent, textvariable=self.p1scopcost, width=7, anchor="e").place(relx=0.3, rely=0.17)
+        self.p1cop.place(relx=0.05, rely=0.2)
+        self.p1scop.place(relx=0.35, rely=0.2)
+        tk.Label(parent, textvariable=self.p2charge, width=7, anchor="e").place(relx=0.80, rely=0.13)
+        tk.Label(parent, textvariable=self.p1copcost, width=7, anchor="w").place(relx=0.55, rely=0.17)
+        tk.Label(parent, textvariable=self.p1scopcost, width=7, anchor="e").place(relx=0.80, rely=0.17)
+        self.p2cop.place(relx=0.55, rely=0.2)
+        self.p2scop.place(relx=0.85, rely=0.2)
+        tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.25, relwidth=1, relheight=0.001)
+
         self.p1cb.place(relx=0.03, rely=0.3)
-        self.p2combo = tk.StringVar()  # move this plz ty
-        self.p2cb = tk.ttk.Combobox(parent, width=23, textvariable=self.p2combo)
         self.p2cb.place(relx=0.53, rely=0.3)
-        # self.p1cb['values'] = (' January',
-        #                        ' December')
+        tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.35, relwidth=1, relheight=0.001)
+
+        # calc button (never needs to check if it's an allowed move, firing has no consequence just prints hps)
+        tk.Button(parent, text='Calc selection', command=self.calc).place(relx=0.4, rely=0.37)
+        # tk.Checkbutton(parent, text='reverse selection', variable=self.calc).place(relx=0.4, rely=0.4)  # reverse
+        # wait button (checks movement)
+        # cap button (checks movement) (does nothing if not inf on prop owned by not current army)
+        # fire button (checks movement)
+
+        # unit controls + details go here").place(relx=0.25, rely=0.45)
+        # production controls go here").place(relx=0.25, rely=0.85
 
     def buttonfunc(self):
         print('ayy it workie')
 
-    def update(self, dims=None):
+    def calc(self):
+        pos = self.p1combo.get().split(' ')[2:4]
+        pos = (int(pos[0][1:-1]), int(pos[1][:-1]))
+        for unit in self.p1['units']:
+            if unit['position'] == pos:
+                u1 = unit
+
+        pos = self.p2combo.get().split(' ')[2:4]
+        pos = (int(pos[0][1:-1]), int(pos[1][:-1]))
+        for unit in self.p2['units']:
+            if unit['position'] == pos:
+                u2 = unit
+
+        # print(u1)
+        # print(u2)
+        print(damage_calc_bounds(u1, u2))
+
+    def update(self, draw=None):
         self.p1funds.set(self.p1['funds'])
         self.p1unitc.set(len(self.p1['units']))
         v = 0
@@ -196,7 +239,6 @@ class Engine:
             display_hp = int(1 + e['hp'] / 10)
             v += int(e['value'] * display_hp / 10)  # full value * visible hp
         self.p1unitv.set(v)
-        self.p1income.set(self.p1['income'])
 
         self.p2funds.set(self.p2['funds'])
         self.p2unitc.set(len(self.p2['units']))
@@ -205,12 +247,18 @@ class Engine:
             display_hp = int(1 + e['hp'] / 10)
             v += int(e['value'] * display_hp / 10)  # full value * visible hp / 10
         self.p2unitv.set(v)
-        self.p2income.set(self.p2['income'])
+
+        # visual things below this point! can be fully commented out im p sure for speedy sims
+
+        self.p1copcost.set(self.p1['COP'] * self.costs[self.p1['starcost']] * 9000)
+        self.p1scopcost.set(self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000)
+        self.p2copcost.set(self.p2['COP'] * self.costs[self.p2['starcost']] * 9000)
+        self.p2scopcost.set(self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000)
 
         # combobox dropdown list thing
         s = []
         for unit in self.p1['units']:
-            s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} {unit['position']}  m:{unit['move']}")
+            s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} {unit['position']} m:{unit['move']}")
             # f:{unit['fuel']} a:{unit['ammo']}  # todo display all these things (stars, terr) somewhere
         self.p1cb['values'] = s
         s = []
@@ -219,35 +267,38 @@ class Engine:
         self.p2cb['values'] = s
 
         # unit visual display
-        # [14, 18]
-        # 0-13 down, 0-17 across
-        if dims is not None:
+        if draw is None:
+            dims = self.map_info[0].shape
             r = 1 / dims[1]
             # might be bottom-left centred. not sure
             for unit in self.p1['units']:
                 img = mpimg.imread(f"units/pc{name_to_filename(unit['type'])}.gif")
-                self.fig.add_axes([r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
-                                  ).imshow(img)
+                self.fig.add_axes(
+                    [r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]).imshow(img)
                 plt.gca().axis("off")
                 # plt.setp(plt.gca(), xticks=[], yticks=[])  # hide ticks but keep white space and black outline
                 # plt.gca().patch.set_alpha(0)  # hide white space
             for unit in self.p2['units']:
                 img = mpimg.imread(f"units/bd{name_to_filename(unit['type'])}.gif")
-                self.fig.add_axes([r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
-                                  ).imshow(img)
+                self.fig.add_axes(
+                    [r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]).imshow(img)
                 plt.gca().axis("off")
             self.canvas.draw()
 
-        # print('updated')
-        # self.w.after(60, self.update)  # only update after something happens. not like this plz :>
-
     def load_map(self):
         self.map_info = load_map(self.map_path.get())
-        # self.fig.set_figwidth(1077 / self.my_dpi)  # todo auto do these dims?
-        # self.fig.set_figheight(839 / self.my_dpi)
         # ownedby, stars, repair, production, access, special
-        # self.ax_bg.set_xlim([0, dims[0]])
-        # self.ax_bg.set_ylim([0, dims[1]])
+        armies = [
+            'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun', 'orangestar',
+            'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy', 'purplelightning',
+            'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
+        ]
+        for e in np.argwhere(self.map_info[0] != 0):  # 0 is neutral
+            if armies[self.map_info[0][e[0], e[1]]] == self.p1['army']:
+                self.p1['properties'] += 1
+            elif armies[self.map_info[0][e[0], e[1]]] == self.p2['army']:
+                self.p2['properties'] += 1
+        self.income_update()
         plt.subplots_adjust(wspace=0, hspace=0)
         plt.tight_layout()
         self.fig.add_axes([0, 0, 1, 1]).imshow(mpimg.imread(self.map_path.get().split('.txt')[0] + '.png'))
@@ -256,7 +307,7 @@ class Engine:
         self.ax.axis("off")
 
         self.load_map_units()
-        self.update(self.map_info[0].shape)
+        self.update()
 
     def load_map_units(self):
         # wipe units
@@ -281,20 +332,91 @@ class Engine:
         self.map_path.set(filedialog.askdirectory())
         self.entry_path.xview_moveto(1)
 
+    def capture(self):  # todo call and stuff. previous check that the property wasn't owned by this army :>
+        # todo this is just the format needed (appending to p1 caps)
+        # assumed p1 caps, aa
+        pos = (2, 1)
+        if self.p2['properties'] == 1:  # search through for this property, if it is owned by p2
+            # then take away
+            self.p2['properties'] -= 1
+
+        # add property number
+        self.p1['properties'] += 1
+
+        # update a little bit (we don't render owning properties that's hard :>)
+        self.income_update()
+
+    def income_update(self):
+        self.p1['income'] = 0
+        self.p2['income'] = 0
+        armies = [
+            'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun', 'orangestar',
+            'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy', 'purplelightning',
+            'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
+        ]
+        for e in np.argwhere(self.map_info[0] != 0):
+            if self.map_info[2][e[0], e[1]] != 0:  # if it can repair it provides income :>
+                if armies[self.map_info[0][e[0], e[1]]] == self.p1['army']:
+                    self.p1['income'] += 1000
+                elif armies[self.map_info[0][e[0], e[1]]] == self.p2['army']:
+                    self.p2['income'] += 1000
+                else:
+                    raise IndexError("Somehow a property is not neutral and not either army. huh")
+        self.p1income.set(self.p1['income'])
+        self.p2income.set(self.p2['income'])
+
+    def p1COP(self):
+        if self.p1['name'] != 'von bolt':
+            # normal power penalty is it costing 20% extra is only on cartridge?
+            if self.p1['charge'] >= self.p1['COP'] * self.costs[self.p1['starcost']] * 9000 and self.p1['power'] == 0:
+                self.p1['charge'] -= self.p1['COP'] * self.costs[self.p1['starcost']] * 9000
+                self.p1, self.p2 = activate_or_deactivate_power(self.p1, self.p2, 1)
+                self.update()
+            else:
+                print("not enough charge or power already activated!")
+        else:
+            print("von bolt doesn't have a COP!")
+
+    def p1SCOP(self):
+        # normal power penalty is it costing 20% extra is only on cartridge?
+        if self.p1['charge'] >= self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000 and self.p1['power'] == 0:
+            self.p1['charge'] -= self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000
+            self.p1, self.p2 = activate_or_deactivate_power(self.p1, self.p2, 2)
+            self.update()
+        else:
+            print("not enough charge or power already activated!")
+
+    def p2COP(self):
+        if self.p2['name'] != 'von bolt':
+            # normal power penalty is it costing 20% extra is only on cartridge?
+            if self.p2['charge'] >= self.p2['COP'] * self.costs[self.p2['starcost']] * 9000 and self.p2['power'] == 0:
+                self.p2['charge'] -= self.p2['COP'] * self.costs[self.p2['starcost']] * 9000
+                self.p2, self.p1 = activate_or_deactivate_power(self.p2, self.p1, 1)
+                self.update()
+            else:
+                print("not enough charge or power already activated!")
+        else:
+            print("von bolt doesn't have a COP!")
+
+    def p2SCOP(self):
+        # normal power penalty is it costing 20% extra is only on cartridge?
+        if self.p2['charge'] >= self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000 and self.p2['power'] == 0:
+            self.p2['charge'] -= self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000
+            self.p2, self.p1 = activate_or_deactivate_power(self.p2, self.p1, 2)
+            self.update()
+        else:
+            print("not enough charge or power already activated!")
+
     def turn_end(self):  # p1 -> p2
 
         self.turns += 1
         self.days.set(int(self.turns / 2) + 1)
         # check win conditions (day limit ig?)
         p1win = False
-        if self.p1['income'] > 23000 and self.p1['name'] != 'sasha':
-            p1win = True
-        elif self.p1['name'] == 'sasha' and self.p1['income'] > 23000 * 1.1:
+        if self.p1['properties'] > 23:
             p1win = True
         if self.days.get() > 40:  # turn limit 40 days?
-            if self.p1['income'] > 15000 and self.p1['name'] != 'sasha':
-                p1win = True
-            elif self.p1['name'] == 'sasha' and self.p1['income'] > 15000 * 1.1:
+            if self.p1['properties'] > 15:
                 p1win = True
         if p1win:
             print('p1 wins')
@@ -348,6 +470,4 @@ class Writer:
 
 
 def on_pick(event):
-    print(event.x)
-    print(event.y)
-    print(event.button)
+    print(f"({event.x}, {event.y}) {event.button}")

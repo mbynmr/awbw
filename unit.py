@@ -36,7 +36,7 @@ def unit_maker(army, typ, co, position, stars=3, terr=5, hp=99, fuel=None, ammo=
         'fuel': this_unit[2] if fuel is None else fuel, 'fueluse': this_unit[3],
         'move': this_unit[0], 'tread': this_unit[5], 'Dtr': stars, 'terr': terr, 'position': position,
         'ammo': this_unit[1] if ammo is None else ammo, 'range': this_unit[4],
-        'Av': 0, 'Dv': 100, 'L': [0, 9]
+        'Av': 100, 'Dv': 100, 'L': [0, 9]
     }
     return unit_stats_editor(unit, co['name'], co['comm'], co['power'], co['funds'], co['properties'])
 

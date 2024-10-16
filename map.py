@@ -21,12 +21,6 @@ def load_map(path='maps/Last Vigil.txt'):
     return ownedby, stars, repair, production, access, special
 
 
-def display_map():
-    ownedby, stars, repair, production, access, special = load_map()
-    # plt.imshow(access, cmap='gray')
-    # plt.show()
-
-
 def convert_id_to_details(idn):
     TS_terrainIdToName = {
         "1": "plain", "2": "mountain", "3": "wood", "4": "hriver", "5": "vriver", "6": "criver", "7": "esriver",

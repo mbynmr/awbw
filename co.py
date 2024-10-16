@@ -11,18 +11,13 @@ def co_maker(name='jake'):
         'drake': [4, 7], 'eagle': [3, 9], 'javier': [3, 6], 'jess': [3, 6],
         'grimm': [3, 6], 'kanbei': [4, 7], 'sensei': [2, 6],  'sonja': [3, 5],
         'adder': [2, 5], 'flak': [3, 6], 'hawke': [5, 9],  'jugger': [3, 7], 'kindle': [3, 6], 'koal': [3, 5],
-        'lash': [4, 7],  'sturm': [6, 10], 'von bolt': [10, 10]
+        'lash': [4, 7],  'sturm': [6, 10], 'von bolt': [0, 10]
     }
     power_cost = co_list[name]
-    co = {
+    return {
         'name': name, 'army': 'neutral', 'comm': 0, 'properties': 0, 'income': 0, 'funds': 0,
-        'power': 0, 'charge': 0, 'COP': power_cost[0], 'SCOP': power_cost[1], 'starcost': 1, 'units': []
+        'power': 0, 'charge': 0, 'COP': power_cost[0], 'SCOP': power_cost[1], 'starcost': 0, 'units': []
     }  # power: 0=CO, 1=COP, 2=SCOP
-    # todo sort out CO things. there's a lot to do herererererere.
-    # L defaults to [0, 9] but sonja gets like [-9, 9]
-    # Av starts at 0. comm tower or CO power etc brings it to 10.
-    # Dv starts at 100. grimm 80, sturm 120 etc
-    return co
 
 
 def activate_or_deactivate_power(co1, co2, power_level_change):
@@ -32,13 +27,8 @@ def activate_or_deactivate_power(co1, co2, power_level_change):
     # set co stats
     co1['power'] += power_level_change
     if power_level_change >= 1:
-        starcost = [1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8, 2]
-        i = starcost[::-1].index(co1['starcost'])
-        if i + 1 < len(starcost):
-            co1['starcost'] = starcost[i + 1]
-        else:
-            co1['starcost'] = 2
-        # normal power penalty is it costing 20% extra is only on cartridge?
+        if co1['starcost'] < 10:
+            co1['starcost'] += 1
 
     match co1['name']:
         case 'andy':
@@ -51,6 +41,7 @@ def activate_or_deactivate_power(co1, co2, power_level_change):
         case 'rachel':
             if power_level_change == 2:
                 x = 1  # todo missiles.
+                # can be done here. co1 and co2 are put in, and they contain units.
                 # The missiles target the opponents' greatest accumulation of:
                 #  footsoldier HP (hp damage dealt, not hp in blob)
                 #  unit value(value damage dealt, not value in blob)
