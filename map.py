@@ -81,7 +81,7 @@ def convert_id_to_details(idn):
 
     # repair - 0: none, 1: ground, 2: sea, 3: air
     # production - 0: none, 1: base, 2: port, 3: airport
-    # access - 0: road, 1: plain, 2: wood, 3: river, 4: shoal, 5: sea, 6: pipe, 7: port, 8: base, 9: mountain
+    # access - 0: road, 1: plain, 2: wood, 3: river, 4: shoal, 5: sea, 6: pipe, 7: port, 8: base, 9: mountain, 10: reef
     # special - 0: misc, 1: pipeseam, 2: missile, 3: road, 4: plain, 5: urban
     terrain_details = [
         # [stars, repair, production, access, special]
@@ -93,7 +93,7 @@ def convert_id_to_details(idn):
         [0, 0, 0, 6, 1],  # pipeseam
         [0, 0, 0, 6, 0],  # pipe
         [0, 0, 0, 5, 0],  # sea
-        [1, 0, 0, 5, 0],  # reef
+        [1, 0, 0, 10, 0],  # reef
         [1, 0, 0, 1, 4],  # plain
         [2, 0, 0, 2, 0],  # wood
         [3, 0, 0, 0, 0],  # siloempty

@@ -81,6 +81,11 @@ class Engine:
         self.p1copcost = tk.IntVar(self.w, value=0)
         self.p1scopcost = tk.IntVar(self.w, value=0)
         self.p1combo = tk.StringVar(self.w)
+        self.p1combo.trace('w', self.combochange)
+        self.p1detailammo = tk.IntVar(self.w, value=0)
+        self.p1detailfuel = tk.IntVar(self.w, value=0)
+        self.p1detailstars = tk.IntVar(self.w, value=0)
+        self.p1detailrange = tk.StringVar(self.w, value='1-1')
 
         self.p2 = co_maker('jess')
         self.p2['army'] = 'yellowcomet'
@@ -93,6 +98,11 @@ class Engine:
         self.p2copcost = tk.IntVar(self.w, value=0)
         self.p2scopcost = tk.IntVar(self.w, value=0)
         self.p2combo = tk.StringVar(self.w)
+        self.p2combo.trace('w', self.combochange)
+        self.p2detailammo = tk.IntVar(self.w, value=0)
+        self.p2detailfuel = tk.IntVar(self.w, value=0)
+        self.p2detailstars = tk.IntVar(self.w, value=0)
+        self.p2detailrange = tk.StringVar(self.w, value='1-1')
 
         self.costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
         self.turns = 0
@@ -148,6 +158,7 @@ class Engine:
         self.Writer = Writer(self.print_box)
 
         self.update(False)  # don't load map & units in update bcus it isn't loaded yet.
+        # self.load_map()
         self.w.mainloop()
 
     def widgets(self):
@@ -172,7 +183,7 @@ class Engine:
     def co_widgets(self, parent):
         #todo check anchor=e and w for all of them. need to add a number rly to check!
         # "CO controls go here (power buttons + bars + details ig)
-        tk.ttk.Separator(parent, orient='vertical').place(relx=0.5, rely=0, relwidth=0.001, relheight=0.35)
+        tk.ttk.Separator(parent, orient='vertical').place(relx=0.5, rely=0, relwidth=0.001, relheight=0.49)
 
         armies = {
             'neutral': 'n', 'amberblaze': 'ab', 'blackhole': 'bh', 'bluemoon': 'bm', 'browndesert': 'bd',
@@ -213,7 +224,25 @@ class Engine:
         # calc button (never needs to check if it's an allowed move, firing has no consequence just prints hps)
         tk.Button(parent, text='Calc selection 1 on 2', command=self.calc1).place(relx=0.1, rely=0.3)
         tk.Button(parent, text='Calc selection 2 on 1', command=self.calc2).place(relx=0.6, rely=0.3)
-        tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.4, relwidth=1, relheight=0.001)
+
+        tk.Label(parent, text='ammo', anchor="w").place(relx=0.05, rely=0.35)
+        tk.Label(parent, text='fuel', anchor="w").place(relx=0.05, rely=0.38)
+        tk.Label(parent, text='stars', anchor="w").place(relx=0.05, rely=0.41)
+        tk.Label(parent, text='range', anchor="w").place(relx=0.05, rely=0.44)
+        tk.Label(parent, textvariable=self.p1detailammo, width=7, anchor="e").place(relx=0.30, rely=0.35)
+        tk.Label(parent, textvariable=self.p1detailfuel, width=7, anchor="e").place(relx=0.30, rely=0.38)
+        tk.Label(parent, textvariable=self.p1detailstars, width=7, anchor="e").place(relx=0.30, rely=0.41)
+        tk.Label(parent, textvariable=self.p1detailrange, width=7, anchor="e").place(relx=0.30, rely=0.44)
+        tk.Label(parent, text='ammo', width=6, anchor="w").place(relx=0.52, rely=0.35)
+        tk.Label(parent, text='fuel', width=6, anchor="w").place(relx=0.52, rely=0.38)
+        tk.Label(parent, text='stars', width=7, anchor="w").place(relx=0.52, rely=0.41)
+        tk.Label(parent, text='range', width=7, anchor="w").place(relx=0.52, rely=0.44)
+        tk.Label(parent, textvariable=self.p2detailammo, width=7, anchor="e").place(relx=0.80, rely=0.35)
+        tk.Label(parent, textvariable=self.p2detailfuel, width=7, anchor="e").place(relx=0.80, rely=0.38)
+        tk.Label(parent, textvariable=self.p2detailstars, width=7, anchor="e").place(relx=0.80, rely=0.41)
+        tk.Label(parent, textvariable=self.p2detailrange, width=7, anchor="e").place(relx=0.80, rely=0.44)
+
+        tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.49, relwidth=1, relheight=0.001)
 
         tk.Button(parent, text='Move & join/load/cap/wait', command=self.move).place(relx=0.15, rely=0.7)
         tk.Button(parent, text='Move & (un/)hide', command=self.hide).place(relx=0.6, rely=0.7)
@@ -242,30 +271,13 @@ class Engine:
             v += int(e['value'] * display_hp / 10)  # full value * visible hp / 10
         self.p2unitv.set(v)
 
-        # visual things below this point! can be fully commented out im p sure for speedy sims
+        # visual things below this point!
 
         self.p1copcost.set(self.p1['COP'] * self.costs[self.p1['starcost']] * 9000)
         self.p1scopcost.set(self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000)
         self.p2copcost.set(self.p2['COP'] * self.costs[self.p2['starcost']] * 9000)
         self.p2scopcost.set(self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000)
-
-        # combobox dropdown list thing
-        s = []
-        # if not sonja bcus she hides her unit hps!
-        for unit in self.p1['units']:
-            if unit['position'] != (-10, -10):
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} {unit['position']} m:{unit['move']}")
-            else:
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} '(loaded)' m:{unit['move']}")
-            # f:{unit['fuel']} a:{unit['ammo']}  # todo display all these things (stars, terr) somewhere
-        self.p1cb['values'] = s
-        s = []
-        for unit in self.p2['units']:
-            if unit['position'] != (-10, -10):
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} {unit['position']} m:{unit['move']}")
-            else:
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} '(loaded)' m:{unit['move']}")
-        self.p2cb['values'] = s
+        self.combobox_update()
 
         # unit visual display
         if draw is None and self.render:
@@ -316,6 +328,44 @@ class Engine:
         self.load_map_units()
         self.update()
 
+    def combobox_update(self):
+        # combobox dropdown list thing
+        s = []
+        # if not sonja bcus she hides her unit hps!
+        for unit in self.p1['units']:
+            if unit['position'] != (-10, -10):
+                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} {unit['position']} m:{unit['move']}")
+            else:
+                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} '(loaded)' m:{unit['move']}")
+        self.p1cb['values'] = s
+        if len(s) > 0:
+            self.p1cb.current(0)
+        s = []
+        for unit in self.p2['units']:
+            if unit['position'] != (-10, -10):
+                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} {unit['position']} m:{unit['move']}")
+            else:
+                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} '(loaded)' m:{unit['move']}")
+        self.p2cb['values'] = s
+        if len(s) > 0:
+            self.p2cb.current(0)
+
+        self.combochange()
+
+    def combochange(self, *args):
+        if len(self.p1cb['values']) > 0:
+            u1 = self.return_unit(pos_from_combobox(self.p1combo))
+            self.p1detailammo.set(u1['ammo'])
+            self.p1detailfuel.set(u1['fuel'])
+            self.p1detailstars.set(u1['Dtr'])
+            self.p1detailrange.set(f"{u1['range'][0]}-{u1['range'][1]}")
+        if len(self.p2cb['values']) > 0:
+            u2 = self.return_unit(pos_from_combobox(self.p2combo))
+            self.p2detailammo.set(u2['ammo'])
+            self.p2detailfuel.set(u2['fuel'])
+            self.p2detailstars.set(u2['Dtr'])
+            self.p2detailrange.set(f"{u2['range'][0]}-{u2['range'][1]}")
+
     def load_map_units(self):
         # wipe units
         self.p1['units'] = []
@@ -360,6 +410,82 @@ class Engine:
         else:
             raise ValueError("oh no big bad, crash crash crash")
 
+    def check_movement(self, u, pos1, pos2):
+        # returns: movecost (0-11 (fighter with +2 move) is possible, -1 is impossible)
+        # todo sturm, lash SCOP, snow, rain affect this function
+
+        if pos1 == pos2:
+            return 0
+
+        access = self.map_info[4]
+        # 0: road, 1: plain, 2: wood, 3: river, 4: shoal, 5: sea, 6: pipe, 7: port, 8: base, 9: mountain, 10: reef
+        grid = np.zeros_like(access)
+        # special = self.map_info[5]
+        # # special - 0: misc, 1: pipeseam, 2: missile, 3: road, 4: plain, 5: urban
+        match u['tread']:
+            case 'treads':
+                grid = np.where(access == 0, 1, 12)  # road
+                grid = np.where(access == 1, 1, grid)  # plain
+                grid = np.where(access == 2, 2, grid)  # wood
+                grid = np.where(access == 4, 1, grid)  # shoal
+                grid = np.where(access == 7, 1, grid)  # port
+                grid = np.where(access == 8, 1, grid)  # base
+            case 'air':
+                grid = np.where(access != 6, 1, 12)  # just not pipe :>
+            case 'sea':
+                grid = np.where(access == 5, 1, 12)
+                grid = np.where(access == 10, 2, grid)
+            case 'lander':
+                grid = np.where(access == 5, 1, 12)
+                grid = np.where(access == 10, 2, grid)
+                grid = np.where(access == 4, 1, grid)
+            case 'inf':
+                grid = np.where(access == 0, 1, 12)
+                grid = np.where(access == 1, 1, grid)
+                grid = np.where(access == 2, 1, grid)
+                grid = np.where(access == 3, 2, grid)  # river
+                grid = np.where(access == 4, 1, grid)
+                grid = np.where(access == 7, 1, grid)
+                grid = np.where(access == 8, 1, grid)
+                grid = np.where(access == 9, 2, grid)  # mtn
+            case 'mech':
+                grid = np.where(access == 0, 1, 12)
+                grid = np.where(access == 1, 1, grid)
+                grid = np.where(access == 2, 1, grid)
+                grid = np.where(access == 3, 1, grid)
+                grid = np.where(access == 4, 1, grid)
+                grid = np.where(access == 7, 1, grid)
+                grid = np.where(access == 8, 1, grid)
+                grid = np.where(access == 9, 1, grid)
+            case 'tyre':
+                grid = np.where(access == 0, 1, 12)
+                grid = np.where(access == 1, 2, grid)
+                grid = np.where(access == 2, 3, grid)
+                grid = np.where(access == 4, 1, grid)
+                grid = np.where(access == 7, 1, grid)
+                grid = np.where(access == 8, 1, grid)
+            case 'pipe':
+                grid = np.where(access == 6, 1, 12)
+
+        if u['army'] == self.p1['army']:
+            enemy_units = self.p2['units']
+        else:
+            enemy_units = self.p1['units']
+        # add enemy units as blockers
+        for enemy_unit in enemy_units:
+            if enemy_unit['position'] != (-10, -10):
+                grid[enemy_unit['position']] = 12
+
+        # todo pathfinding goes here
+        # todo some places are impossible to reach (ie coords for a pipe for an inf)
+        not_possible = 5
+        if not_possible:
+            return -1
+        movementcost = 0
+        if movementcost > u['move']:  # costs too much movement so it is impossible
+            return -1
+        return movementcost
+
     def action(self, pos, desired_pos, desired_action='wait', target_pos=None):
         if pos == (-10, -10):
             raise CustomError("loaded units can't do anything")
@@ -370,9 +496,10 @@ class Engine:
         # if u1['move'] < 1:
         #     raise CustomError("unit cannot move anymore")
 
-        # todo check movement to desired_pos
-        # todo recons make movement hard bcus u can move around more than you can move through sometimes.
-        #  actual path finding is needed :/
+        movecost = self.check_movement(u1, pos, desired_pos)
+        if movecost < 0:
+            raise CustomError(f"move is impossible")
+        # elif movecost >
 
         u2store = self.return_unit(target_pos)
         u2 = self.return_unit(target_pos)  # unit being fired on
@@ -447,7 +574,7 @@ class Engine:
                         check = u3['loaded']  # attempt loading
                         match u3['type']:
                             # apc is 1x space, foot
-                            # bboat is 2x space, foor
+                            # bboat is 2x space, foot
                             # lander is 2x space, land unit
                             # tcopter is 1x space, foot
                             # carrier is 2x space, air
@@ -461,7 +588,15 @@ class Engine:
                             case 'lander':
                                 if len(u3['loaded']) < 2 and u1['tread'] not in ['pipe', 'air', 'sea', 'lander']:
                                     u3['loaded'].append(u1)
-                            # todo more cases to fill out now
+                            case 'tcopter':
+                                if len(u3['loaded']) == 0 and u1['type'] in ['inf', 'mech']:
+                                    u3['loaded'].append(u1)
+                            case 'carrier':
+                                if len(u3['loaded']) < 2 and u1['tread'] == 'air':
+                                    u3['loaded'].append(u1)
+                            case 'cruiser':
+                                if len(u3['loaded']) < 2 and u1['type'] in ['bcopter', 'tcopter']:
+                                    u3['loaded'].append(u1)
                         if u3['loaded'] == check:
                             # doesn't load even tho u tried
                             raise CustomError(
@@ -540,6 +675,35 @@ class Engine:
                     u2['hp'] += 10
                     if u2['hp'] > 99:
                         u2['hp'] = 99
+                        types = {
+                            'aa': [9, 60],
+                            'apc': [0, 60],
+                            'arty': [9, 50],
+                            'bcopter': [6, 99],
+                            'bship': [9, 99],
+                            'bboat': [-1, 50],
+                            'bbomb': [0, 45],
+                            'bomber': [9, 99],
+                            'carrier': [9, 99],
+                            'cruiser': [9, 99],
+                            'fighter': [9, 99],
+                            'inf': [-1, 99],
+                            'lander': [0, 99],
+                            'med': [8, 50],
+                            'mech': [3, 70],
+                            'mega': [3, 50],
+                            'missile': [6, 50],
+                            'neo': [9, 99],
+                            'pipe': [9, 99],
+                            'recon': [-1, 80],
+                            'rocket': [6, 50],
+                            'stealth': [6, 60],
+                            'sub': [6, 60],
+                            'tcopter': [0, 99],
+                            'tank': [9, 70]
+                        }  # ammo, fuel
+                        u2['ammo'] = types[u2['type']][0]
+                        u2['fuel'] = types[u2['type']][1]
 
             case 'hide':
                 u1['hidden'] = not u1['hidden']  # wow this one is nice and simple :>
@@ -547,7 +711,6 @@ class Engine:
         # all actions if successful move and set fuel
         u1['position'] = desired_pos  # everything went smoothly let's update position :D
         u1['move'] = 0  # unit has used it's turn, set move to 0
-        movecost = 0  # todo work out cost of movement (and whether it can afford that at the start of the function)
         u1['fuel'] = u1['fuel'] - movecost
         u1['Dtr'] = self.map_info[1][desired_pos]
         u1['terr'] = self.map_info[5][desired_pos]
@@ -567,13 +730,19 @@ class Engine:
         elif len(u2['loaded']) > 0:
             for u in u2['loaded']:
                 self.delete_unit(u)
+                if len(u['loaded']) > 0:  # could be an inf on an apc on a lander
+                    for ul in u['loaded']:
+                        self.delete_unit(ul)
 
         if u1['hp'] >= 0:  # counter-attack doesn't destroy attacker/join doesn't remove joiner
             self.p1['units'].append(u1)
         elif len(u1['loaded']) > 0:  # u1['typ'] == 'cruiser' bcus it's only cruisers that can be here
+            # cruisers force us to have this clause here. the only transport that can die to counter-attack :c
             for u in u1['loaded']:
                 self.delete_unit(u)
-            # cruisers force us to have this clause here. the only transport that can die to counter-attack :c
+                if len(u['loaded']) > 0:  # could be an inf on a tcopter on a cruiser
+                    for ul in u['loaded']:
+                        self.delete_unit(ul)
 
         self.update()  # after the move is done, update the board!
 
@@ -603,11 +772,17 @@ class Engine:
 
     def hide(self):
         pos, desired_pos, _ = self.get_poses_from_UI()
-        print("not implemented")
+        try:
+            self.action(pos, desired_pos, desired_action='hide')
+        except CustomError as Err:
+            print(Err)
 
     def repair(self):
         pos, desired_pos, target_pos = self.get_poses_from_UI()
-        print("not implemented")
+        try:
+            self.action(pos, desired_pos, desired_action='repair', target_pos=target_pos)
+        except CustomError as Err:
+            print(Err)
 
     def unload(self):
         pos, _, _ = self.get_poses_from_UI()
