@@ -16,6 +16,7 @@ from co import co_maker, activate_or_deactivate_power
 from unit import unit_maker, name_to_filename
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
+from pathfind import path_find
 
 
 # todo sturm & lash movement
@@ -61,8 +62,8 @@ class Engine:
         self.render = render
 
         self.w = tk.Tk(className='awbw')
-        self.w.geometry("100x400")  # this is the worst. i hate it.
-        self.w.state('zoomed')
+        self.w.geometry("1920x1030")  # this is the worst. i hate it.
+        # self.w.state('zoomed')
         # self.w.resizable(False, False)
 
         # tk.StringVar(self.w, value='single')
@@ -289,7 +290,7 @@ class Engine:
             # might be bottom-left centred. not sure
             for unit in self.p1['units']:
                 if unit['position'] != (-10, -10):
-                    img = mpimg.imread(f"units/pc{name_to_filename(unit['type'])}.gif")
+                    img = mpimg.imread(f"/home/nathaniel/PycharmProjects/awbw/units/pc{name_to_filename(unit['type'])}.gif")
                     self.fig.add_axes(
                         [r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
                     ).imshow(img)
@@ -298,7 +299,8 @@ class Engine:
                     # plt.gca().patch.set_alpha(0)  # hide white space
             for unit in self.p2['units']:
                 if unit['position'] != (-10, -10):
-                    img = mpimg.imread(f"units/bd{name_to_filename(unit['type'])}.gif")
+                    # img = mpimg.imread(f"units/bd{name_to_filename(unit['type'])}.gif")
+                    img = mpimg.imread(f"/home/nathaniel/PycharmProjects/awbw/units/bd{name_to_filename(unit['type'])}.gif")
                     self.fig.add_axes(
                         [r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
                     ).imshow(img)
@@ -323,7 +325,8 @@ class Engine:
         plt.tight_layout()
         # print('background displayed!')
         # self.ax.axis("off")
-        self.map_bg = mpimg.imread(self.map_path.get().split('.txt')[0] + '.png')
+        # self.map_bg = mpimg.imread(self.map_path.get().split('.txt')[0] + '.png')
+        self.map_bg = mpimg.imread('/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.png')
 
         self.load_map_units()
         self.update()
@@ -355,16 +358,25 @@ class Engine:
     def combochange(self, *args):
         if len(self.p1cb['values']) > 0:
             u1 = self.return_unit(pos_from_combobox(self.p1combo))
-            self.p1detailammo.set(u1['ammo'])
-            self.p1detailfuel.set(u1['fuel'])
-            self.p1detailstars.set(u1['Dtr'])
-            self.p1detailrange.set(f"{u1['range'][0]}-{u1['range'][1]}")
+            if u1 is not None:
+                self.p1detailammo.set(u1['ammo'])
+                self.p1detailfuel.set(u1['fuel'])
+                self.p1detailstars.set(u1['Dtr'])
+                self.p1detailrange.set(f"{u1['range'][0]}-{u1['range'][1]}")
+                self.display_movement(u1)
         if len(self.p2cb['values']) > 0:
             u2 = self.return_unit(pos_from_combobox(self.p2combo))
-            self.p2detailammo.set(u2['ammo'])
-            self.p2detailfuel.set(u2['fuel'])
-            self.p2detailstars.set(u2['Dtr'])
-            self.p2detailrange.set(f"{u2['range'][0]}-{u2['range'][1]}")
+            if u2 is not None:
+                self.p2detailammo.set(u2['ammo'])
+                self.p2detailfuel.set(u2['fuel'])
+                self.p2detailstars.set(u2['Dtr'])
+                self.p2detailrange.set(f"{u2['range'][0]}-{u2['range'][1]}")
+
+    def display_movement(self, unit):
+        for x, _ in enumerate(self.map_info[0][:, 0]):
+            for y, _ in enumerate(self.map_info[0][0, :]):
+                if self.check_movement(unit, unit['position'], (x, y)) >= 0:
+                    print(f"({x}, {y})")  # these are all allowed positions, it seems to work good but it's v annoying
 
     def load_map_units(self):
         # wipe units
@@ -372,7 +384,8 @@ class Engine:
         self.p2['units'] = []
 
         # load units from file
-        with open(self.map_path.get().split('.txt')[0] + ' units.txt') as file:
+        # with open(self.map_path.get().split('.txt')[0] + ' units.txt') as file:
+        with open('/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil units.txt') as file:
             for line in file:
                 army, typ, x, y = line.split(', ')
                 pos = (int(y), int(x))  # todo tuple not list, b careful
@@ -476,15 +489,12 @@ class Engine:
             if enemy_unit['position'] != (-10, -10):
                 grid[enemy_unit['position']] = 12
 
-        # todo pathfinding goes here
-        # todo some places are impossible to reach (ie coords for a pipe for an inf)
-        not_possible = 5
-        if not_possible:
-            return -1
-        movementcost = 0
-        if movementcost > u['move']:  # costs too much movement so it is impossible
-            return -1
-        return movementcost
+        movecost = path_find(pos1, pos2, grid)
+        if movecost > u['move']:  # costs too much movement so it is impossible
+            return -2
+        elif movecost > u['fuel']:
+            return -3
+        return movecost
 
     def action(self, pos, desired_pos, desired_action='wait', target_pos=None):
         if pos == (-10, -10):
@@ -498,7 +508,12 @@ class Engine:
 
         movecost = self.check_movement(u1, pos, desired_pos)
         if movecost < 0:
-            raise CustomError(f"move is impossible")
+            if movecost == -3:
+                raise CustomError(f"not enough fuel")
+            elif movecost == -2:
+                raise CustomError(f"not enough move")
+            else:
+                raise CustomError(f"move is impossible for some reason")
         # elif movecost >
 
         u2store = self.return_unit(target_pos)

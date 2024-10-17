@@ -5,6 +5,7 @@ import numpy as np
 
 def load_map(path='maps/Last Vigil.txt'):
     print('loading map...')
+    path = '/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.txt'
     print(f'map path: {path}')
     ids = np.loadtxt(path, delimiter=',', dtype=int)
     ownedby = np.zeros_like(ids)
