@@ -24,7 +24,7 @@ def activate_or_deactivate_power(co1, co2, power_level_change):
     # set co stats
     # remake all units
 
-    # set co stats
+    # set
     co1['power'] += power_level_change
     if power_level_change >= 1:
         if co1['starcost'] < 10:
@@ -63,11 +63,12 @@ def activate_or_deactivate_power(co1, co2, power_level_change):
         case 'drake':
             if power_level_change >= 1:
                 for i, unit in enumerate(co2['units']):
-                    unit['hp'] -= (10 if power_level_change == 1 else 20)
-                    if unit['hp'] <= 1:
-                        unit['hp'] = 1
-                    unit['fuel'] = int(unit['fuel'] / 2)  # do 0 fuel things crash instantly?
-                    co2['units'][i] = unit
+                    if unit['position'] != (-10, -10):  # units in transports don't get hit
+                        unit['hp'] -= (10 if power_level_change == 1 else 20)
+                        if unit['hp'] <= 1:
+                            unit['hp'] = 1
+                        unit['fuel'] = int(unit['fuel'] / 2)  # do 0 fuel things crash instantly?
+                        co2['units'][i] = unit
         case 'sensei':
             x = 1
             # spawn first
@@ -88,8 +89,10 @@ def activate_or_deactivate_power(co1, co2, power_level_change):
 
     # remake
     for i, unit in enumerate(co1['units']):
-        co1['units'][i] = unit_maker(unit['army'], unit['type'], co1, unit['position'], stars=unit['Dtr'],
-                                     terr=unit['terr'], hp=unit['hp'], fuel=unit['fuel'], ammo=unit['ammo'])
+        co1['units'][i] = unit_maker(
+            unit['army'], unit['type'], co1, unit['position'], stars=unit['Dtr'], terr=unit['terr'], hp=unit['hp'],
+            fuel=unit['fuel'], ammo=unit['ammo'], hidden=unit['hidden'], loaded=unit['loaded']
+        )
     return co1, co2
 
 # thing = {'0': -0, '1': -1, '2': -2, '3': -3, '4': -4}

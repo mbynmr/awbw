@@ -1,47 +1,67 @@
 import numpy as np
 
 
-def fire(unit1, unit2, counter=True):
-    dmg = damage_calc(unit1, unit2)
-    unit1['ammo'] = unit1['ammo'] - 1
+def fire(unit1, unit2, counter):
+    dmg, ammo = damage_calc(unit1, unit2)
+    if ammo:
+        unit1['ammo'] = unit1['ammo'] - 1
     unit2['hp'] = unit2['hp'] - dmg
 
     if unit2['hp'] < 0:  # outside hp range (0 to 99 is alive. 90-99 is 10hp, 0-9hp is 1hp)
-        return unit1, None  # without counter-attack
+        return unit1, unit2  # garanteed no counter-attack
     if counter:
-        dmg = damage_calc(unit2, unit1)
-        unit2['ammo'] = unit2['ammo'] - 1
+        dmg, ammo = damage_calc(unit2, unit1)
+        if ammo:
+            unit2['ammo'] = unit2['ammo'] - 1
         unit1['hp'] = unit1['hp'] - dmg
-
-        if unit1['hp'] < 0:
-            return None, unit2  # counter-attack destroys attacker
-    return unit1, unit2  # no destruction
+    return unit1, unit2
 
 
 def damage_calc(u1, u2):
+    ammo = True
     base = base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '')  # base damage lookup
     if base == 0:
-        raise ValueError(f"attack not valid. put an extra check in somewhere to avoid"
-                         f"{u1['type']} with ammo {u1['ammo']} on {u2['type']}")
+        if u1['ammo'] != 0:  # if tank has to use secondary on inf for example
+            base = base_damage(u1['type'], u2['type'], 'AMMO')
+            ammo = False
     damage = base * u1['Av'] / 100 + np.random.choice(u1['L'][1] + u1['L'][0]) - u1['L'][0]  # attack value
     hp = int(1 + u1['hp'] / 10) / 10  # hp 'out of 10' divided by 10: full unit is 1x damage, half hp is 0.5x
     defence = 2 - (u2['Dv'] + (u2['Dtr'] * int(1 + u2['hp'] / 10))) / 100  # defence multiplier
     # is rounded up to the nearest interval of 0.05 then rounded down to the nearest integer
     # (float precision needs a round before the int())
     out = int(np.round(damage * hp * defence + 0.05, 5))
-    return out if out == 0 else 0
+    return out if out >= 0 else 0, ammo
 
 
 def damage_calc_bounds(u1, u2):
+    ammo = True
     base = base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '')  # base damage lookup
     if base == 0:
-        raise ValueError(f"attack not valid. put an extra check in somewhere to avoid"
-                         f"{u1['type']} with ammo {u1['ammo']} on {u2['type']}")
+        if u1['ammo'] != 0:  # if tank has to use secondary on inf for example
+            base = base_damage(u1['type'], u2['type'], 'AMMO')
+            ammo = False
     damageL = base * u1['Av'] / 100 + u1['L'][0]
     damageU = base * u1['Av'] / 100 + u1['L'][1]
     hp = int(1 + u1['hp'] / 10) / 10
     defence = 2 - (u2['Dv'] + (u2['Dtr'] * int(1 + u2['hp'] / 10))) / 100
-    return int(np.round(damageL * hp * defence + 0.05, 5)), int(np.round(damageU * hp * defence + 0.05, 5))
+    return int(np.round(damageL * hp * defence + 0.05, 5)), int(np.round(damageU * hp * defence + 0.05, 5)), ammo
+
+
+def compatible(u1, u2):
+    if u2['hidden']:
+        if u2['type'] == 'sub':
+            if u1['type'] != 'cruiser':
+                return False
+        elif u2['type'] == 'stealth':
+            if u1['type'] != 'fighter':
+                return False
+    if base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '') == 0 and u1['ammo'] != 0:
+        return True
+    elif base_damage(u1['type'], u2['type'], 'AMMO') == 0:
+        return True
+    else:
+        return False
+
 
 
 def base_damage(type1, type2, ammo=''):  # default ammo is ok. if 'AMMO' is passed in, different calcs are done.

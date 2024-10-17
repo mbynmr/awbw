@@ -1,6 +1,6 @@
 
 
-def unit_maker(army, typ, co, position, stars=3, terr=5, hp=99, fuel=None, ammo=None):
+def unit_maker(army, typ, co, position, stars=3, terr=5, hp=99, fuel=None, ammo=None, hidden=None, loaded=None, capture=None):
     # stars defaults to 3 for base etc, same for terr (urban = 5)
     types = {
         'aa': [6, 9, 60, 0, [1, 1], 'treads', 8000],
@@ -35,8 +35,9 @@ def unit_maker(army, typ, co, position, stars=3, terr=5, hp=99, fuel=None, ammo=
         'army': army, 'hp': hp, 'type': typ, 'value': this_unit[6],
         'fuel': this_unit[2] if fuel is None else fuel, 'fueluse': this_unit[3],
         'move': this_unit[0], 'tread': this_unit[5], 'Dtr': stars, 'terr': terr, 'position': position,
-        'ammo': this_unit[1] if ammo is None else ammo, 'range': this_unit[4],
-        'Av': 100, 'Dv': 100, 'L': [0, 9]
+        'ammo': this_unit[1] if ammo is None else ammo, 'range': this_unit[4], 'Av': 100, 'Dv': 100, 'L': [0, 9],
+        'hidden': False if hidden is None else hidden, 'loaded': [] if loaded is None else loaded,
+        'capture': 0 if capture is None else capture
     }
     return unit_stats_editor(unit, co['name'], co['comm'], co['power'], co['funds'], co['properties'])
 
@@ -264,6 +265,7 @@ def unit_stats_editor(unit, name, comm, power, funds, properties):
 
 
 def name_to_filename(name):
+    # "C:\Users\mbynmr\PycharmProjects\awbw\units"
     types = {
         'aa': 'anti-air',
         # 'apc': 'apc',
