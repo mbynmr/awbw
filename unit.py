@@ -31,6 +31,8 @@ def unit_maker(army, typ, co, position, stars=3, terr=5, hp=99, fuel=None, ammo=
     }  # move, ammo, fuel, fuel/day, range, tread, value
     this_unit = types[typ]
 
+    # fuel = this_unit[2] if fuel is None else (fuel if fuel <= this_unit[2] else this_unit[2])
+    # ammo = this_unit[1] if ammo is None else (ammo if ammo <= this_unit[1] else this_unit[1])
     unit = {
         'army': army, 'hp': hp, 'type': typ, 'value': this_unit[6],
         'fuel': this_unit[2] if fuel is None else fuel, 'fueluse': this_unit[3],

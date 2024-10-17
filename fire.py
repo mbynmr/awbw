@@ -55,13 +55,12 @@ def compatible(u1, u2):
         elif u2['type'] == 'stealth':
             if u1['type'] != 'fighter':
                 return False
-    if base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '') == 0 and u1['ammo'] != 0:
+    if base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '') != 0 and u1['ammo'] != 0:
         return True
-    elif base_damage(u1['type'], u2['type'], 'AMMO') == 0:
-        return True
-    else:
-        return False
-
+    elif u1['ammo'] != 0:
+        if base_damage(u1['type'], u2['type'], 'AMMO') != 0:
+            return True
+    return False
 
 
 def base_damage(type1, type2, ammo=''):  # default ammo is ok. if 'AMMO' is passed in, different calcs are done.
