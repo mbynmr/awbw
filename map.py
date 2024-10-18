@@ -5,7 +5,7 @@ import numpy as np
 
 def load_map(path='maps/Last Vigil.txt'):
     print('loading map...')
-    path = '/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.txt'
+    # path = '/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.txt'
     print(f'map path: {path}')
     ids = np.loadtxt(path, delimiter=',', dtype=int)
     ownedby = np.zeros_like(ids)
@@ -89,7 +89,7 @@ def convert_id_to_details(idn):
         [0, 0, 0, 0, 3],  # road
         [0, 0, 0, 4, 0],  # shoal
         [0, 0, 0, 0, 0],  # bridge
-        [0, 0, 0, 0, 0],  # river
+        [0, 0, 0, 3, 0],  # river
         [0, 0, 0, 0, 0],  # piperubble
         [0, 0, 0, 6, 1],  # pipeseam
         [0, 0, 0, 6, 0],  # pipe
