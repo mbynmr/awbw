@@ -27,6 +27,8 @@ from pathfind import path_find
 # todo sonja hiding unit hps and total value and damage calc numbers
 # todo pipseam attacks & destruction
 # todo fuel use + (hidden/submerged)
+# todo unit cap (50 units per side?)
+# todo lab cap win
 # todo damage:
 #  sonja SCOP attack order
 #  kanbei & sonja counterattack damage
@@ -105,9 +107,11 @@ class Engine:
         self.p2detailstars = tk.IntVar(self.w, value=0)
         self.p2detailrange = tk.StringVar(self.w, value='1-1')
 
-
+        self.winner = 0
+        self.prodcombo = tk.StringVar(self.w)
         self.costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
-        self.turns = 0
+        self.turns = -1
+        self.turns_display = tk.IntVar(self.w, value=int(self.turns))
         self.days = tk.IntVar(self.w, value=int(self.turns / 2) + 1)
         self.map_info = ([], [], [], [], [], [])  # ownedby, stars, repair, production, access, special
         self.von_bolt_missiles = []  # [[turn popped, (position popped)], [turn, (pos)], [turn, (pos)], ...] missiles
@@ -142,14 +146,24 @@ class Engine:
         self.game_widgets(game_tab)
         co_tab = tk.Frame(details_nb)
         details_nb.add(co_tab, text='CO & unit')
-        self.scalex = tk.Scale(co_tab, from_=0, to=200, length=300, orient='horizontal')
-        self.scaley = tk.Scale(co_tab, from_=0, to=200, length=140, orient='vertical')
+        self.scale_curx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
+        self.scale_cury = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
+        self.scale_desx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
+        self.scale_desy = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
+        self.scale_tarx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
+        self.scale_tary = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
         self.p1cop = tk.Button(co_tab, text='COP', command=self.p1COP)
         self.p1scop = tk.Button(co_tab, text='SCOP', command=self.p1SCOP)
         self.p2cop = tk.Button(co_tab, text='COP', command=self.p2COP)
         self.p2scop = tk.Button(co_tab, text='SCOP', command=self.p2SCOP)
         self.p1cb = tk.ttk.Combobox(co_tab, width=23, textvariable=self.p1combo)
         self.p2cb = tk.ttk.Combobox(co_tab, width=23, textvariable=self.p2combo)
+        self.productioncb = tk.ttk.Combobox(co_tab, width=13, textvariable=self.prodcombo)
+        self.productioncb['values'] = [
+            'aa', 'apc', 'arty', 'bcopter', 'bship', 'bboat', 'bbomb', 'bomber', 'carrier', 'cruiser', 'fighter', 'inf',
+            'lander', 'med', 'mech', 'mega', 'missile', 'neo', 'pipe', 'recon', 'rocket', 'stealth', 'sub', 'tcopter',
+            'tank'
+        ]
         self.co_widgets(co_tab)
         page3 = tk.Frame(details_nb)
         details_nb.add(page3, text='debug')
@@ -184,6 +198,9 @@ class Engine:
         tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.11, relwidth=1, relheight=0.2)
         tk.Label(parent, text='Day: ', width=5, anchor="e").place(relx=0.15, rely=0.275)
         tk.Label(parent, textvariable=self.days, width=4, anchor="w").place(relx=0.3, rely=0.275)
+        tk.Label(parent, text='Turn: ', width=5, anchor="e").place(relx=0.15, rely=0.25)
+        tk.Label(parent, textvariable=self.turns_display, width=4, anchor="w").place(relx=0.3, rely=0.25)
+        tk.Button(parent, text='End turn', command=self.turn_end).place(relx=0.15, rely=0.3)
 
     def co_widgets(self, parent):
         #todo check anchor=e and w for all of them. need to add a number rly to check!
@@ -218,8 +235,8 @@ class Engine:
         self.p1cop.place(relx=0.05, rely=0.2)
         self.p1scop.place(relx=0.35, rely=0.2)
         tk.Label(parent, textvariable=self.p2charge, width=7, anchor="e").place(relx=0.80, rely=0.13)
-        tk.Label(parent, textvariable=self.p1copcost, width=7, anchor="w").place(relx=0.55, rely=0.17)
-        tk.Label(parent, textvariable=self.p1scopcost, width=7, anchor="e").place(relx=0.80, rely=0.17)
+        tk.Label(parent, textvariable=self.p2copcost, width=7, anchor="w").place(relx=0.55, rely=0.17)
+        tk.Label(parent, textvariable=self.p2scopcost, width=7, anchor="e").place(relx=0.80, rely=0.17)
         self.p2cop.place(relx=0.55, rely=0.2)
         self.p2scop.place(relx=0.85, rely=0.2)
         tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.25, relwidth=1, relheight=0.001)
@@ -249,20 +266,35 @@ class Engine:
 
         tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.49, relwidth=1, relheight=0.001)
 
-        self.scalex.place(relx=0.13, rely=0.49)
-        self.scaley.place(relx=0.01, rely=0.53)
-        tk.Button(parent, text='Move & join/load/cap/wait', command=self.move).place(relx=0.04, rely=0.7)
-        tk.Button(parent, text='Move & fire', command=self.fire).place(relx=0.5, rely=0.7)
-        tk.Button(parent, text='Display move', command=self.display_move).place(relx=0.74, rely=0.7)
-        tk.Button(parent, text='Move & (un/)hide', command=self.hide).place(relx=0.03, rely=0.75)
-        tk.Button(parent, text='Move & repair', command=self.repair).place(relx=0.36, rely=0.75)
-        tk.Button(parent, text='Unload (doesn\'t wait)', command=self.unload).place(relx=0.64, rely=0.75)
-        tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.8, relwidth=1, relheight=0.001)
+        self.scale_curx.place(relx=0.12, rely=0.49)
+        self.scale_cury.place(relx=0.01, rely=0.53)
+        tk.Label(parent, text='current (x, y)').place(relx=0.14, rely=0.535)
+        tk.Button(parent, text='Display move (doesn\'t wait)', command=self.display_move).place(relx=0.2, rely=0.56)
+        tk.Button(parent, text='Unload (doesn\'t wait)', command=self.unload).place(relx=0.2, rely=0.60)
+        self.scale_desx.place(relx=0.12, rely=0.64)
+        self.scale_desy.place(relx=0.01, rely=0.68)
+        tk.Label(parent, text='final (x, y)').place(relx=0.14, rely=0.685)
+        tk.Button(parent, text='Move & join/load/cap/wait', command=self.move).place(relx=0.2, rely=0.71)
+        tk.Button(parent, text='Move & (un/)hide', command=self.hide).place(relx=0.2, rely=0.75)
+        self.scale_tarx.place(relx=0.12, rely=0.79)
+        self.scale_tary.place(relx=0.01, rely=0.83)
+        tk.Label(parent, text='target (x, y)').place(relx=0.14, rely=0.835)
+        tk.Button(parent, text='Move & fire', command=self.fire).place(relx=0.2, rely=0.86)
+        tk.Button(parent, text='Move & repair', command=self.repair).place(relx=0.2, rely=0.90)
+        # tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.8, relwidth=1, relheight=0.001)
 
-        # unit controls + details go here").place(relx=0.25, rely=0.45)
-        # production controls go here").place(relx=0.25, rely=0.85
+        # tk.ttk.Separator(parent, orient='vertical').place(relx=0.68, rely=0.49, relwidth=0.001, relheight=0.2)
+        tk.ttk.Separator(parent, orient='horizontal').place(relx=0.68, rely=0.64, relwidth=0.32, relheight=0.001)
+        tk.Button(parent, text='Delete', command=self.delete_coords).place(relx=0.74, rely=0.52)
+        tk.Button(parent, text='Build', command=self.build).place(relx=0.74, rely=0.56)
+        self.productioncb.place(relx=0.7, rely=0.6)
 
     def update(self, draw=None):
+        if self.winner != 0:
+            if self.turns % 2 == 0:
+                raise WinError(f"winner!!!! p1 in {self.turns} turns")
+            else:
+                raise WinError(f"winner!!!! p2 in {self.turns} turns")
         self.p1funds.set(self.p1['funds'])
         self.p1unitc.set(len(self.p1['units']))
         v = 0
@@ -282,6 +314,7 @@ class Engine:
 
         # visual things below this point!
 
+        self.charge_update()
         self.p1copcost.set(self.p1['COP'] * self.costs[self.p1['starcost']] * 9000)
         self.p1scopcost.set(self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000)
         self.p2copcost.set(self.p2['COP'] * self.costs[self.p2['starcost']] * 9000)
@@ -318,8 +351,12 @@ class Engine:
 
     def load_map(self):
         self.map_info = load_map(self.map_path.get())
-        self.scalex.configure(to=self.map_info[0].shape[1] - 1)
-        self.scaley.configure(to=self.map_info[0].shape[0] - 1)
+        self.scale_curx.configure(to=self.map_info[0].shape[1] - 1)
+        self.scale_cury.configure(to=self.map_info[0].shape[0] - 1)
+        self.scale_desx.configure(to=self.map_info[0].shape[1] - 1)
+        self.scale_desy.configure(to=self.map_info[0].shape[0] - 1)
+        self.scale_tarx.configure(to=self.map_info[0].shape[1] - 1)
+        self.scale_tary.configure(to=self.map_info[0].shape[0] - 1)
         # ownedby, stars, repair, production, access, special
         armies = [
             'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun', 'orangestar',
@@ -340,7 +377,11 @@ class Engine:
         # self.map_bg = mpimg.imread('/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.png')
 
         self.load_map_units()
-        self.update()
+        self.turn_end()
+
+    def charge_update(self):
+        self.p1charge.set(self.p1['charge'])
+        self.p2charge.set(self.p2['charge'])
 
     def combobox_update(self):
         # combobox dropdown list thing
@@ -348,7 +389,8 @@ class Engine:
         # if not sonja bcus she hides her unit hps!
         for unit in self.p1['units']:
             if unit['position'] != (-10, -10):
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} {unit['position']} m:{unit['move']}")
+                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} ({unit['position'][1]}, {unit['position'][0]})"
+                         f" m:{unit['move']}")
             else:
                 s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} '(loaded)' m:{unit['move']}")
         self.p1cb['values'] = s
@@ -357,7 +399,8 @@ class Engine:
         s = []
         for unit in self.p2['units']:
             if unit['position'] != (-10, -10):
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} {unit['position']} m:{unit['move']}")
+                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} ({unit['position'][1]}, {unit['position'][0]})"
+                         f" m:{unit['move']}")
             else:
                 s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} '(loaded)' m:{unit['move']}")
         self.p2cb['values'] = s
@@ -383,26 +426,33 @@ class Engine:
                 self.p2detailrange.set(f"{u2['range'][0]}-{u2['range'][1]}")
 
     def display_move(self):
-        pos, _, _ = self.get_poses_from_UI()
+        pos = self.get_poses_from_UI(1)
         unit = self.return_unit(pos)
-        self.display_movement(unit)
+        if unit is None:
+            raise CustomError(f"coords {pos} don't correspond to a unit")
+        if unit['move'] >= 1:
+            self.display_movement(unit)
+        else:
+            self.display_movement(None)
 
-    def display_movement(self, unit):
+    def display_movement(self, unit=None):
         for ax in self.ax_display_move:
-            ax.remove()  # todo clear first
+            if ax in self.fig.axes:  # find out whether they have already been cleared
+                ax.remove()  # clear first
         self.ax_display_move = []
-        for coords in self.check_movement(unit, unit['position']):
-            # x = coords[0]
-            # y = coords[1]
-            # print(f"({x}, {y})")  # these are all allowed positions, it seems to work good but it spams prints
-            r = 1 / self.map_info[0].shape[1]
-            self.ax_display_move.append(self.fig.add_axes(
-                [r * coords[1], 1 - (14 / 11) * (r * coords[0] + 0.95 * r), r, r]
-            ))
-            img = np.ones([9, 9, 4]) * [0, 0.4, 0.8, 0.8]
-            img[1:-1, 1:-1, :] = [0, 0.4, 0.8, 0.3]
-            self.ax_display_move[-1].imshow(img)
-            self.ax_display_move[-1].axis("off")
+        if unit is not None:
+            for coords in self.check_movement(unit, unit['position']):
+                # x = coords[0]
+                # y = coords[1]
+                # print(f"({x}, {y})")  # these are all allowed positions, it seems to work good but it spams prints
+                r = 1 / self.map_info[0].shape[1]
+                self.ax_display_move.append(self.fig.add_axes(
+                    [r * coords[1], 1 - (14 / 11) * (r * coords[0] + 0.95 * r), r, r]
+                ))
+                img = np.ones([9, 9, 4]) * [0, 0.4, 0.8, 0.8]
+                img[1:-1, 1:-1, :] = [0, 0.4, 0.8, 0.3]
+                self.ax_display_move[-1].imshow(img)
+                self.ax_display_move[-1].axis("off")
         self.canvas.draw()
 
     def load_map_units(self):
@@ -424,7 +474,7 @@ class Engine:
                     self.p2['units'].append(unit_maker(army, typ, self.p2, pos,
                                                        self.map_info[1][pos], self.map_info[5][pos]))
                 else:
-                    raise ImportError(f"neither player is {army}")
+                    raise CustomError(f"neither player is {army}")
 
     def calc1(self):
         calc(pos_from_combobox(self.p1combo), pos_from_combobox(self.p2combo), self.p1['units'], self.p2['units'])
@@ -456,7 +506,7 @@ class Engine:
         elif u in self.p2['units']:
             self.p2['units'].remove(u)
         else:
-            raise ValueError("oh no big bad, crash crash crash")
+            raise CustomError("oh no big bad, crash crash crash")
 
     def check_movement(self, u, pos1, pos2=None):
         # returns: movecost (0-11 (fighter with +2 move) is possible, -1 is impossible)
@@ -539,12 +589,24 @@ class Engine:
     def action(self, pos, desired_pos, desired_action='wait', target_pos=None):
         if pos == (-10, -10):
             raise CustomError("loaded units can't do anything")
-        u1store = self.return_unit(pos)
         u1 = self.return_unit(pos)  # unit making the move
         if u1 is None:
             raise CustomError(f"somehow no unit is at position {pos} to make the move")
-        # if u1['move'] < 1:
-        #     raise CustomError("unit cannot move anymore")
+        elif self.turns % 2 == 0:  # even turn means p1 turn
+            if u1['army'] != self.p1['army']:
+                raise CustomError("selected unit is not owned by the player who's turn it is!")
+            else:
+                sami = self.p1['name'] == 'sami'  # this player sami
+                javier = self.p2['name'] == 'javier'  # other player javier
+        else:  # odd turn means p2 turn
+            if u1['army'] != self.p2['army']:
+                raise CustomError("selected unit is not owned by the player who's turn it is!")
+            else:
+                sami = self.p2['name'] == 'sami'  # this player sami
+                javier = self.p1['name'] == 'javier'  # other player javier
+        if u1['move'] < 1:
+            raise CustomError("unit cannot move anymore")
+        u1store = u1.copy()
 
         movecost = self.check_movement(u1, u1['position'], desired_pos)
         if movecost < 0:
@@ -556,14 +618,15 @@ class Engine:
                 raise CustomError(f"move is impossible for some reason")
         # elif movecost >
 
-        u2store = self.return_unit(target_pos)
         u2 = self.return_unit(target_pos)  # unit being fired on
+        if u2 is not None:
+            u2store = u2.copy()
+        else:
+            u2store = None
         if pos == desired_pos:
             u3 = None  # no u3 if u3 is the same unit as u1
-            u3store = None
         else:
             u1['capture'] = 0  # set this unit's capture value to 0 because it isn't in the same place anymore
-            u3store = self.return_unit(desired_pos)
             u3 = self.return_unit(desired_pos)  # unit at desired position
 
             if u3 is not None:  # if there is actually a unit there, see what we can do
@@ -663,24 +726,21 @@ class Engine:
 
         # no enemy unit is in the way, the action is allowed
         match desired_action:
-            case 'wait':  # cap. if not cap: no action
-                if u3 is None and u1['type'] in ['inf', 'mech'] and u1['army'] != [
-                    'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
-                    'orangestar', 'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy',
-                    'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
-                ][self.map_info[0][desired_pos]] and self.map_info[5][desired_pos] == 5:
-                    # self.map_info[5] = special (0: misc, 1: pipeseam, 2: missile, 3: road, 4: plain, 5: urban)
-                    # if no unit there, this unit is footsoldier, tile is not owned by friendly, terrain is urban
-                    u1['capture'] += int(1 + u1['hp'] / 10)  # todo sami capture
-                    if u1['capture'] >= 20:  # capture happened!
-                        if self.p2['properties'] == 1:  # search through for this property, if it is owned by p2
-                            # then take away
-                            self.p2['properties'] -= 1
-                        # add property number
-                        self.p1['properties'] += 1
 
-                        # update a little bit (we don't render owning properties that's hard :>)
-                        self.income_update()
+            case 'wait':  # cap. if not cap: no action
+                if u1['type'] in ['inf', 'mech']:  # if this unit is footsoldier
+                    if u1['army'] != [
+                        'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
+                        'orangestar', 'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy',
+                        'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
+                    ][self.map_info[0][desired_pos]] and self.map_info[5][desired_pos] == 5:
+                        # if tile is not owned by friendly, terrain is urban
+                        if sami:
+                            u1['capture'] += int(int(1 + u1['hp'] / 10) * 1.5)
+                        else:
+                            u1['capture'] += int(1 + u1['hp'] / 10)
+                        if u1['capture'] >= 20:  # capture happened!
+                            self.capture_success(desired_pos)
 
             case 'fire':
                 if target_pos is None:
@@ -697,10 +757,10 @@ class Engine:
                         if desired_to_target_dist != 1:
                             raise CustomError(f"attack not valid. {u1['type']} is not an indirect and"
                                               f" moving to {desired_pos} is not next to the target {target_pos}")
-                    elif abs((pos[0] - pos[1]) + (desired_pos[0] - desired_pos[1])) != 0:
+                    elif abs((pos[0] - desired_pos[0]) + (pos[1] - desired_pos[1])) != 0:
                         raise CustomError("attack not valid. indirects have to stay where they are to shoot!")
                     elif desired_to_target_dist > u1['range'][1] or desired_to_target_dist < u1['range'][0]:
-                        raise CustomError(f"{desired_to_target_dist} too far to shoot for range {u1['range']}")
+                        raise CustomError(f"{desired_to_target_dist} is out of range for unit with range {u1['range']}")
 
                     # distance checks are complete, now let's try unit attack checks
                     if not compatible(u1, u2):
@@ -712,18 +772,11 @@ class Engine:
                         counter = False
                     u1['Dtr'] = self.map_info[1][desired_pos]  # 1: stars
                     u1['terr'] = self.map_info[5][desired_pos]  # 5: special (plain=4)
-                    if u1['type'] in indr:
-                        if self.p1['army'] == u2['army'] and self.p1['name'] == 'javier':  # if p1 javier owns this
-                            u2['Dv'] += 40
-                        elif self.p2['army'] == u2['army'] and self.p2['name'] == 'javier':  # if p2 javier owns this
-                            u2['Dv'] += 40
+                    if u1['type'] in indr and javier:  # if javier owns this
+                        u2['Dv'] += 40
                     u1, u2 = fire(u1, u2, counter)
-                    if u1['type'] in indr:  # reset javier
-                        if self.p1['army'] == u2['army'] and self.p1['name'] == 'javier':
-                            u2['Dv'] -= 40
-                        elif self.p2['army'] == u2['army'] and self.p2['name'] == 'javier':
-                            u2['Dv'] -= 40
-                    # todo charge exchange! could combo that with the javier reset by storing a copy of pre-fight u1, u2
+                    if u1['type'] in indr and javier:  # reset javier
+                        u2['Dv'] -= 40
 
             case 'repair':
                 if target_pos is None:
@@ -768,6 +821,7 @@ class Engine:
 
             case 'hide':
                 u1['hidden'] = not u1['hidden']  # wow this one is nice and simple :>
+                # if i do fog then forests mess with this. be careful! (and i guess normal fog too)
 
         # all actions if successful move and set fuel
         u1['position'] = desired_pos  # everything went smoothly let's update position :D
@@ -776,68 +830,196 @@ class Engine:
         u1['Dtr'] = self.map_info[1][desired_pos]
         u1['terr'] = self.map_info[5][desired_pos]
 
-        self.mange_units_after_action(u1store, u2store, u3store, u1, u2, u3)
-        self.update()  # after the move is done, update the board!
+        # charge calculations
+        if desired_action == 'fire':
+            if u1['hp'] >= 0:
+                u1_dmg_value = int((int(1 + u1store['hp'] / 10) - int(1 + u1['hp'] / 10)) * u1['value'])
+            else:
+                u1_dmg_value = int(int(1 + u1store['hp'] / 10) * u1['value'])
+            if u2['hp'] >= 0:
+                u2_dmg_value = int((int(1 + u2store['hp'] / 10) - int(1 + u2['hp'] / 10)) * u2['value'])
+            else:
+                u2_dmg_value = int(int(1 + u2store['hp'] / 10) * u2['value'])
+            if self.turns % 2 == 0:  # even turn means p1 turn
+                self.p1['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
+                self.p2['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
+            else:
+                self.p2['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
+                self.p1['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
 
-    def mange_units_after_action(self, u1store, u2store, u3store, u1, u2, u3):
-        # upon destruction, check for loaded units and destroy them in the normal unit list :>
-
-        self.delete_unit(u1store)
-        self.delete_unit(u2store)
-        self.delete_unit(u3store)  # handles None unit just fine
-
+        # manage units that need deleting
         for u in [u1, u2, u3]:
             if u is not None:
-                if u['hp'] >= 0:
-                    if u['army'] == self.p1['army']:
-                        self.p1['units'].append(u)
-                    else:
-                        self.p2['units'].append(u)
+                if u['hp'] < 0:
+                    self.delete_unit(u)
 
-    def get_poses_from_UI(self):
-        if self.turns % 2 == 0:  # even turn means p1 turn
-            pos = pos_from_combobox(self.p1combo)
-            target_pos = pos_from_combobox(self.p2combo)
-        else:  # odd turn means p2 turn
-            pos = pos_from_combobox(self.p2combo)
-            target_pos = pos_from_combobox(self.p1combo)
-        return pos, (self.scaley.get(), self.scalex.get()), target_pos
+        self.update()  # after the move is done, update the board!
+
+    # def mange_units_after_action(self, u1, u2, u3):
+    #     # upon destruction, check for loaded units and destroy them in the normal unit list :>
+    #     # (don't get charge for loaded units when the carrier is destroyed)
+    #
+    #     # self.delete_unit(u1store)
+    #     # self.delete_unit(u2store)
+    #     # self.delete_unit(u3store)  # handles None unit just fine
+    #
+    #     for u in [u1, u2, u3]:
+    #         if u is not None:
+    #             if u['hp'] < 0:
+    #                 self.delete_unit(u)
+
+    def get_poses_from_UI(self, num):
+        match num:
+            case 1:
+                return self.scale_cury.get(), self.scale_curx.get()
+            case 2:
+                return (self.scale_cury.get(), self.scale_curx.get()),\
+                    (self.scale_desy.get(), self.scale_desx.get())
+            case 3:
+                return (self.scale_cury.get(), self.scale_curx.get()),\
+                    (self.scale_desy.get(), self.scale_desx.get()),\
+                    (self.scale_tary.get(), self.scale_tarx.get())
+
+    # def get_poses_from_UI_old(self):
+    #     if self.turns % 2 == 0:  # even turn means p1 turn
+    #         pos = pos_from_combobox(self.p1combo)
+    #         target_pos = pos_from_combobox(self.p2combo)
+    #     else:  # odd turn means p2 turn
+    #         pos = pos_from_combobox(self.p2combo)
+    #         target_pos = pos_from_combobox(self.p1combo)
+    #     return pos, (self.scale_desy.get(), self.scale_desx.get()), target_pos
 
     def fire(self):
-        pos, desired_pos, target_pos = self.get_poses_from_UI()
+        pos, desired_pos, target_pos = self.get_poses_from_UI(3)
         try:
             self.action(pos, desired_pos, desired_action='fire', target_pos=target_pos)
         except CustomError as Err:
             print(Err)
 
     def move(self):
-        pos, desired_pos, _ = self.get_poses_from_UI()
+        pos, desired_pos = self.get_poses_from_UI(2)
         try:
-            self.action(pos, desired_pos, desired_action='move')
+            self.action(pos, desired_pos, desired_action='wait')
         except CustomError as Err:
             print(Err)
 
     def hide(self):
-        pos, desired_pos, _ = self.get_poses_from_UI()
+        pos, desired_pos = self.get_poses_from_UI(2)
         try:
             self.action(pos, desired_pos, desired_action='hide')
         except CustomError as Err:
             print(Err)
 
     def repair(self):
-        pos, desired_pos, target_pos = self.get_poses_from_UI()
+        pos, desired_pos, target_pos = self.get_poses_from_UI(3)
         try:
             self.action(pos, desired_pos, desired_action='repair', target_pos=target_pos)
         except CustomError as Err:
             print(Err)
 
-    def unload(self):
-        pos, _, _ = self.get_poses_from_UI()
-        # todo this isn't finished. all it does is resupply the lander
-        #  the choice of unit to unload needs to be somewhere in UI, then that fed in here.
-        #  the destination of the unloaded unit also needs to be in UI
+    def build(self):
+        pos = self.get_poses_from_UI(1)
+
+        if self.turns % 2 == 0:
+            army = self.p1['army']
+            funds = self.p1['funds']
+        else:
+            army = self.p2['army']
+            funds = self.p2['funds']
+
+        if army != [
+            'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
+            'orangestar', 'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy',
+            'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
+        ][self.map_info[0][pos]]:  # if that space (production hopefully) owned by this turn's player
+            raise CustomError("this player doesn't own that space")
+
+        typ = self.prodcombo.get()
+        typfail = True
+        match self.map_info[3][pos]:  # combination base + land unit, port + sea unit,...
+            case 1:  # base
+                if typ in ['aa', 'apc', 'arty', 'inf',
+                           'med', 'mech', 'mega', 'missile', 'neo', 'pipe', 'recon', 'rocket',
+                           'tank']:
+                    typfail = False
+            case 2:  # port
+                if typ in ['bship', 'bboat', 'carrier', 'cruiser', 'lander', 'sub']:
+                    typfail = False
+            case 3:  # airport
+                if typ in ['bcopter', 'bbomb', 'bomber', 'fighter', 'stealth', 'tcopter']:
+                    typfail = False
+            case _:  # 0 = none, any building that isn't production (hq hehe)
+                raise CustomError("no production at that location")
+        if typfail:
+            raise CustomError("bases make land/pipe, ports make sea, airports make air. wrong combo attempted")
+
+        if self.return_unit(pos) is not None:  # if unit is there
+            raise CustomError("unit already in that location")
+
+        costs = {
+            'aa': 8000,
+            'apc': 5000,
+            'arty': 6000,
+            'bcopter': 9000,
+            'bship': 28000,
+            'bboat': 7500,
+            'bbomb': 25000,
+            'bomber': 22000,
+            'carrier': 30000,
+            'cruiser': 18000,
+            'fighter': 20000,
+            'inf': 1000,
+            'lander': 12000,
+            'med': 16000,
+            'mech': 3000,
+            'mega': 28000,
+            'missile':  12000,
+            'neo': 22000,
+            'pipe': 20000,
+            'recon': 4000,
+            'rocket': 15000,
+            'stealth': 24000,
+            'sub': 20000,
+            'tcopter': 5000,
+            'tank': 7000
+        }
+        if funds < costs[typ]:  # if funds for this turn's player
+            raise CustomError(f"unit costs {costs[typ]} but player only has funds {funds}")
+
+        # todo if unit cap hasn't been hit
+
+        # build the unit with 0 move so it can't instantly move this turn.
+        if army == self.p1['army']:
+            self.p1['units'].append(unit_maker(army, typ, self.p1, pos, move=0))
+            self.p1['funds'] -= costs[typ]
+        elif army == self.p2['army']:
+            self.p2['units'].append(unit_maker(army, typ, self.p2, pos, move=0))
+            self.p2['funds'] -= costs[typ]
+
+        self.update()
+
+    def delete_coords(self):
+        pos = self.get_poses_from_UI(1)
         u = self.return_unit(pos)
-        self.delete_unit(u)
+        if u is None:
+            raise CustomError("no unit at that location")
+        if u['move'] < 1:
+            raise CustomError("can't delete: unit has already moved")
+        if self.turns % 2 == 0 and u['army'] == self.p1['army']:
+            self.delete_unit(u)
+        elif self.turns % 2 == 1 and u['army'] == self.p2['army']:
+            self.delete_unit(u)
+        else:
+            raise CustomError("can't delete: that unit isn't owned by the player who's turn it is!")
+        self.update()
+
+    def unload(self):
+        pos = self.get_poses_from_UI(1)
+        # todo this isn't finished. all it does is resupply the lander!
+        #  the choice of unit to unload needs to be somewhere in UI, then that fed in here.
+        #  the destination of the unloaded unit also needs to be in UI (target pos should b good)
+        u = self.return_unit(pos)
+        # self.delete_unit(u)  # why was a delete here? bad idea uhh
 
         types = {
             'aa': [9, 60],
@@ -876,6 +1058,36 @@ class Engine:
 
         self.update()
 
+    def capture_success(self, position):
+        armies = [
+            'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
+            'orangestar', 'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy',
+            'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
+        ]
+        if self.turns % 2 == 0:
+            self.p1['properties'] += 1
+            self.map_info[0][position] = armies.index(self.p1['army'])
+            enemy_army = self.p2['army']
+        else:
+            self.p2['properties'] += 1
+            self.map_info[0][position] = armies.index(self.p2['army'])
+            enemy_army = self.p1['army']
+
+        if enemy_army == [
+                    'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
+                    'orangestar', 'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy',
+                    'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
+                ][self.map_info[0][position]]:  # check whether enemy owned this property before
+            if self.map_info[1][position] == 4 and self.map_info[5][position] == 5:  # if hq
+                player_wins_by_hq_cap = 1  # todo
+            if self.turns % 2 == 0:
+                self.p2['properties'] -= 1
+            else:
+                self.p1['properties'] -= 1
+
+        # update a little bit (we don't render owning properties that's hard :>)
+        self.income_update()
+
     def income_update(self):
         self.p1['income'] = 0
         self.p2['income'] = 0
@@ -891,7 +1103,7 @@ class Engine:
                 elif armies[self.map_info[0][e[0], e[1]]] == self.p2['army']:
                     self.p2['income'] += 1000
                 else:
-                    raise IndexError("Somehow a property is not neutral and not either army. huh")
+                    raise CustomError("Somehow a property is not neutral and not either army. huh")
         self.p1income.set(self.p1['income'])
         self.p2income.set(self.p2['income'])
 
@@ -934,34 +1146,45 @@ class Engine:
         else:
             print("not enough charge or power already activated!")
 
-    def turn_end(self):  # p1 -> p2
-
+    def turn_end(self):
+        if len(self.map_info[0]) == 0:
+            print("load a map before ending turn please")
+            return
         self.turns += 1
+        self.turns_display.set(self.turns)
         self.days.set(int(self.turns / 2) + 1)
+        if self.turns % 2 == 1:  # going to p2 from p1
+            self.p1, self.p2 = self.turn_swap(self.p1, self.p2)
+        else:  # going to p1 from p2
+            self.p2, self.p1 = self.turn_swap(self.p2, self.p1)
+        self.update()
+
+    def turn_swap(self, p1, p2):  # p1 -> p2 turn end/start
         # check win conditions (day limit ig?)
         p1win = False
-        if self.p1['properties'] > 23:
+        if p1['properties'] > 23:
             p1win = True
         if self.days.get() > 40:  # turn limit 40 days?
-            if self.p1['properties'] > 15:
+            if p1['properties'] > 15:
                 p1win = True
-        if self.days.get() >= 2 and len(self.p2['units']) == 0:  # if p2 has no units and it's not the start of the game
+        if self.days.get() >= 2 and len(p2['units']) == 0:  # if p2 has no units and it's not the start of the game
             p1win = True
         if p1win:
-            print('p1 wins')
+            self.winner = p1['army']
 
-        # turn starts in this order ig (p1 ending, p2 beginning)
-        self.p2, self.p1 = activate_or_deactivate_power(self.p2, self.p1, -self.p2['power'])
-        self.p2['funds'] += self.p2['income']
+        p2, p1 = activate_or_deactivate_power(p2, p1, -p2['power'])  # p2's power gets deactivated if it was on
+        p2['funds'] += p2['income']
         repair = 1  # todo rachel +1 repair
         fuel_and_ammo_resuuply = 1
         fuel_use = 1
         crashed_planes_check = 1
-        if self.p1['name'] == 'von bolt':
+        if p1['name'] == 'von bolt':
             if self.von_bolt_missiles[-1][0] == self.turns - 1:
                 pos = self.von_bolt_missiles[-1][1]
                 units_move_set_0 = 1  # only enemy get stunned, even though self damage is done? check in a game ig?
+        self.income_update()
         self.update()
+        return p1, p2  # not needed  # todo not needed :D
 
     def select_path(self):
         self.map_path.set(filedialog.askdirectory())
@@ -1021,7 +1244,7 @@ def calc(pos1, pos2, units1, units2):
 
 def pos_from_combobox(combobox_option):
     pos = combobox_option.get().split(' ')[2:4]
-    return int(pos[0][1:-1]), int(pos[1][:-1])
+    return int(pos[1][:-1]), int(pos[0][1:-1])
 
 
 def buttonfunc():
@@ -1032,3 +1255,8 @@ class CustomError(Exception):
     def __init__(self, message):
         super().__init__(message)
         # if I want extra arguments, go to https://stackoverflow.com/a/1319675
+
+
+class WinError(Exception):
+    def __init__(self, message):
+        super().__init__(message)

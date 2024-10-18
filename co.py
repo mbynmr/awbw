@@ -91,7 +91,7 @@ def activate_or_deactivate_power(co1, co2, power_level_change):
     for i, unit in enumerate(co1['units']):
         co1['units'][i] = unit_maker(
             unit['army'], unit['type'], co1, unit['position'], stars=unit['Dtr'], terr=unit['terr'], hp=unit['hp'],
-            fuel=unit['fuel'], ammo=unit['ammo'], hidden=unit['hidden'], loaded=unit['loaded']
+            fuel=unit['fuel'], ammo=unit['ammo'], capture=unit['capture'], hidden=unit['hidden'], loaded=unit['loaded']
         )
     return co1, co2
 
