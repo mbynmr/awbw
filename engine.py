@@ -33,27 +33,6 @@ from pathfind import path_find
 #  sonja SCOP attack order
 #  kanbei & sonja counterattack damage
 
-# reward:
-#  ++++winning in as few turns as possible
-#  +++winning
-#  ++unit count advantage (prevents stalls where ai just builds units and hides them)
-#  ++income advantage
-#  +moving
-#  +attacking
-# punish:
-#  ----losing
-#  0.00001-CustomError (very very very small punish, we want it to try things before assuming it won't work)
-# training idea: a set of stages it has to pass before moving on to the next
-# give it a nearly winning position (like 10 of them?) where they just cap hq to win or kill 1 unit
-# then level it up, make it so it needs 2 turns to win.
-# then add some resistance (inf on hq to kill, then cap)
-# then make it a few turns before victory
-# then make it play itself from turn 0 lots of times on a few maps
-# then let it choose CO and repeat
-# play me!
-# profit??
-# play against sensei a lot bcus the "calcs" the ai has won't account for 9hp inf/mech spawns: spawns are always 10hp
-
 
 class Engine:
     """
