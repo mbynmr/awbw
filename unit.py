@@ -35,18 +35,26 @@ def unit_maker(army, typ, co, pos, stars=3, terr=5, hp=99,
 
     # fuel = this_unit[2] if fuel is None else (fuel if fuel <= this_unit[2] else this_unit[2])
     # ammo = this_unit[1] if ammo is None else (ammo if ammo <= this_unit[1] else this_unit[1])
+    if coname == 'nell':
+        luck = [0, 19]
+    elif coname == 'flak':
+        luck = [-9, 24]
+    elif coname == 'jugger':
+        luck = [-14, 29]
+    else:
+        luck = [0, 9]
     unit = {
         'army': army, 'hp': hp, 'type': typ, 'value': this_unit[6],
         'fuel': this_unit[2] if fuel is None else fuel, 'fueluse': this_unit[3],
         'move': this_unit[0] if move is None else move, 'tread': this_unit[5], 'terr': terr, 'Dv': 100, 'position': pos,
-        'ammo': this_unit[1] if ammo is None else ammo, 'range': this_unit[4], 'Dtr': stars, 'Av': 100, 'L': [0, 9],
+        'ammo': this_unit[1] if ammo is None else ammo, 'range': this_unit[4], 'Dtr': stars, 'Av': 100, 'L': luck,
         'hidden': False if hidden is None else hidden, 'loaded': [] if loaded is None else loaded,
         'capture': 0 if capture is None else capture
     }
-    return unit_stats_editor(unit, coname, co['comm'], co['power'], co['funds'], co['properties'])
+    return unit_stats_editor(unit, coname, co['com'], co['power'], co['funds'], co['properties'])
 
 
-def unit_stats_editor(unit, name, comm, power, funds, properties):
+def unit_stats_editor(unit, name, com, power, funds, properties):
     # all_unit_typ = [
     #     'aa', 'apc', 'arty', 'bcopter', 'bship', 'bboat', 'bbomb', 'bomber', 'carrier', 'cruiser', 'fighter', 'inf',
     #     'lander', 'med', 'mech', 'mega', 'missile', 'neo', 'pipe', 'recon', 'rocket', 'stealth', 'sub', 'tcopter',
@@ -65,7 +73,7 @@ def unit_stats_editor(unit, name, comm, power, funds, properties):
     sea = unit['type'] in ['bship', 'bboat', 'carrier', 'cruiser', 'lander', 'sub']
 
     # attack
-    unit['Av'] += comm
+    unit['Av'] += com
     # luck
     # range
     # move
@@ -139,11 +147,14 @@ def unit_stats_editor(unit, name, comm, power, funds, properties):
             if air:
                 unit['Av'] += 15 + (0 if power == 0 else 5)
                 unit['Dv'] += 10 + (0 if power == 0 else 10)
-                unit['fueluse'] -= 2
+                if unit['fueluse'] > 2:
+                    unit['fueluse'] -= 2
+                else:
+                    unit['fueluse'] = 0
             elif sea:
                 unit['Av'] -= 30
         case 'javier':
-            unit['Dv'] += comm
+            unit['Dv'] += com
         case 'jess':
             if veh:
                 if power != 0:

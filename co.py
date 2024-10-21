@@ -15,7 +15,7 @@ def co_maker(name='jake', army='neutral'):
     }
     power_cost = co_list[name]
     return {
-        'name': name, 'army': army, 'comm': 0, 'properties': 0, 'income': 0, 'funds': 0,
+        'name': name, 'army': army, 'com': 0, 'properties': 0, 'income': 0, 'funds': 0,
         'power': 0, 'charge': 0, 'COP': power_cost[0], 'SCOP': power_cost[1], 'starcost': 0, 'units': []
     }  # power: 0=CO, 1=COP, 2=SCOP
 
@@ -30,71 +30,105 @@ def activate_or_deactivate_power(co1, co2, power_level_change):
         if co1['starcost'] < 10:
             co1['starcost'] += 1
 
-    match co1['name']:
-        case 'andy':
-            if power_level_change >= 1:
-                for i, unit in enumerate(co1['units']):
+    if power_level_change >= 1:  # powers going on
+        match co1['name']:
+            case 'andy':
+                for unit in co1['units']:
                     unit['hp'] += (20 if power_level_change == 1 else 50)
                     if unit['hp'] >= 90:  # check this rounding. I'm p sure if it shows as full hp it gets all 99
                         unit['hp'] = 99
-                    co1['units'][i] = unit
-        case 'rachel':
-            if power_level_change == 2:
-                # The missiles target the opponents' greatest accumulation of:
-                #  footsoldier HP (hp damage dealt, not hp in blob)
-                #  unit value(value damage dealt, not value in blob)
-                #  unit HP (hp damage dealt, not hp in blob)
-                # im making the assumption the inf missile doesn't care about friendlies unless they are inf?
-                # todo indirects have 2x value
-                pos = (1, 2)  # todo missile locations
-                co1['units'] = missile(pos, units=co1['units'])
-                co2['units'] = missile(pos, units=co2['units'])
-                pos = (3, 2)
-                co1['units'] = missile(pos, units=co1['units'])
-                co2['units'] = missile(pos, units=co2['units'])
-                pos = (6, 2)
-                co1['units'] = missile(pos, units=co1['units'])
-                co2['units'] = missile(pos, units=co2['units'])
-        case 'colin':
-            if power_level_change == 1:
-                co1['funds'] = int(co1['funds'] * 1.5)  # assuming this is how it rounds
-        case 'olaf':  # todo snow cover/uncover
-            if power_level_change == 2:
-                for i, unit in enumerate(co2['units']):
-                    unit['hp'] -= 20
-                    if unit['hp'] <= 1:
-                        unit['hp'] = 1
-                    co2['units'][i] = unit
-        case 'sasha':
-            if power_level_change == 1:
-                c = co2['charge'] - co2['SCOP'] * (co1['funds'] * 10 / 50)
-                co2['charge'] = (int(c) if c > 0 else 0)
-        case 'drake':
-            if power_level_change >= 1:
-                for i, unit in enumerate(co2['units']):
-                    if unit['position'] != (-10, -10):  # units in transports don't get hit
-                        unit['hp'] -= (10 if power_level_change == 1 else 20)
+                    # co1['units'][i] = unit
+            case 'rachel':
+                if power_level_change == 2:
+                    # The missiles target the opponents' greatest accumulation of:
+                    #  footsoldier HP (hp damage dealt, not hp in blob)
+                    #  unit value(value damage dealt, not value in blob)
+                    #  unit HP (hp damage dealt, not hp in blob)
+
+                    # todo missile locations
+                    pos = (1, 2)  # primary: inf hp, seconday: value (including friendly!!)
+                    co1['units'] = missile(pos, units=co1['units'])
+                    co2['units'] = missile(pos, units=co2['units'])
+                    pos = (3, 2)  # value todo indirects have 2x value
+                    co1['units'] = missile(pos, units=co1['units'])
+                    co2['units'] = missile(pos, units=co2['units'])
+                    pos = (6, 2)  # hp
+                    co1['units'] = missile(pos, units=co1['units'])
+                    co2['units'] = missile(pos, units=co2['units'])
+            case 'colin':
+                if power_level_change == 1:
+                    co1['funds'] = int(co1['funds'] * 1.5)  # assuming this is how it rounds
+            case 'olaf':  # todo snow cover
+                if power_level_change == 2:
+                    for unit in co2['units']:
+                        unit['hp'] -= 20
                         if unit['hp'] <= 1:
                             unit['hp'] = 1
-                        unit['fuel'] = int(unit['fuel'] / 2)  # do 0 fuel things crash instantly?
-                        co2['units'][i] = unit
-        case 'sensei':
-            x = 1
-            # spawn first
-            # todo spawn lol that's hard.
-            # set stats second bcus all units are getting remade after anyway.
-        case 'javier':
-            if power_level_change < 0:
-                co1['comm'] /= 1 - power_level_change
-            elif power_level_change > 0:
-                co1['comm'] *= 1 + power_level_change
-            # [-2, -1, 0, 1, 2]
-            # [1/3, 1/2, 1, 2, 3]
-        case 'lash':
-            if power_level_change == -2:
-                for i, unit in enumerate(co1['units']):
-                    unit['Dtr'] /= 2
-                    co1['units'][i] = unit
+                        # co2['units'][i] = unit
+            case 'sasha':
+                if power_level_change == 1:
+                    c = co2['charge'] - co2['SCOP'] * (co1['funds'] * 10 / 50)
+                    co2['charge'] = (int(c) if c > 0 else 0)
+            case 'drake':  # todo rain cover
+                for unit in co2['units']:  # damage enemies
+                    if unit['position'] != (-10, -10):  # units in transports don't get hit
+                        unit['hp'] -= 10 if power_level_change == 1 else 20
+                        if unit['hp'] < 0:
+                            unit['hp'] = 0
+                        unit['fuel'] = int(unit['fuel'] / 2)  # do 0 fuel things crash instantly? start of p2 turn?
+                        # co2['units'][i] = unit
+            case 'eagle':
+                if power_level_change == 2:
+                    for unit in co1['units']:
+                        unit['move'] = None  # setting None tricks unit_maker into resetting it to full
+            case 'javier':
+                co1['com'] *= 1 + power_level_change
+                # [-2, -1, 0, 1, 2]
+                # [1/3, 1/2, 1, 2, 3]
+            case 'jess':
+                for unit in co1['units']:
+                    unit['ammo'] = None  # setting None tricks unit_maker into resetting it to full
+                    unit['fuel'] = None  # setting None tricks unit_maker into resetting it to full
+            case 'sensei':
+                x = 1
+                # spawn first
+                # todo spawn lol that's hard.
+                # set stats second bcus all units are getting remade after anyway.
+            case 'hawke':
+                for unit in co2['units']:  # damage enemies
+                    if unit['position'] != (-10, -10):  # units in transports don't get hit
+                        unit['hp'] -= 10 if power_level_change == 1 else 20
+                        if unit['hp'] < 0:
+                            unit['hp'] = 0
+                for unit in co1['units']:  # heal friendlies
+                    if unit['position'] != (-10, -10):  # units in transports don't get healed
+                        unit['hp'] += 10 if power_level_change == 1 else 20
+                        if unit['hp'] > 99:
+                            unit['hp'] = 99
+            case 'lash':
+                if power_level_change == 2:
+                    for unit in co1['units']:
+                        unit['Dtr'] *= 2
+                        # co1['units'][i] = unit
+            case 'sturm':
+                pos = (6, 2)  # todo missile position
+                # The missile targets an enemy unit located at the greatest accumulation of unit value.
+                # key: sturm requires a unit to be at the centre of the missile.
+                co1['units'] = missile(pos, units=co1['units'], hp=(4 if power_level_change == 1 else 8))
+                co2['units'] = missile(pos, units=co2['units'], hp=(4 if power_level_change == 1 else 8))
+            case 'von bolt':
+                pos = (6, 2)  # todo missile position
+                # The missile targets the opponents' greatest accumulation of unit value.
+                co1['units'] = missile(pos, units=co1['units'])
+                co2['units'] = missile(pos, units=co2['units'])
+    elif power_level_change <= -1:  # powers going off
+        match co1['name']:
+            case 'lash':
+                if power_level_change == -2:
+                    for unit in co1['units']:
+                        unit['Dtr'] /= 2
+            case 'javier':
+                co1['com'] /= 1 - power_level_change
 
     # remake
     for i, unit in enumerate(co1['units']):

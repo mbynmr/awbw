@@ -631,13 +631,27 @@ class Engine:
                 raise CustomError("selected unit is not owned by the player who's turn it is!")
             else:
                 sami = self.p1['name'] == 'sami'  # this player sami
+                sasha = self.p1['name'] == 'sasha'  # this player sasha
+                SCOP = self.p1['power'] == 2
+                COP = self.p1['power'] == 1
+                eSCOP = self.p2['power'] == 2
+                eCOP = self.p2['power'] == 1
                 javier = self.p2['name'] == 'javier'  # other player javier
+                sonja = self.p2['name'] == 'sonja'  # other player sonja
+                kanbei = self.p2['name'] == 'kanbei'  # other player kanbei
         else:  # odd turn means p2 turn
             if u1['army'] != self.p2['army']:
                 raise CustomError("selected unit is not owned by the player who's turn it is!")
             else:
                 sami = self.p2['name'] == 'sami'  # this player sami
+                sasha = self.p2['name'] == 'sasha'  # this player sasha
+                SCOP = self.p2['power'] == 2
+                COP = self.p2['power'] == 1
+                eSCOP = self.p1['power'] == 2
+                eCOP = self.p1['power'] == 1
                 javier = self.p1['name'] == 'javier'  # other player javier
+                sonja = self.p1['name'] == 'sonja'  # other player sonja
+                kanbei = self.p1['name'] == 'kanbei'  # other player kanbei
         if u1['move'] < 1:
             raise CustomError("unit cannot move anymore")
         u1store = u1.copy()
@@ -775,7 +789,8 @@ class Engine:
                     ][self.map_info[0][desired_pos]] and self.map_info[5][desired_pos] == 5:
                         # if tile is not owned by friendly, terrain is urban
                         u1['capture'] += int(int(1 + u1['hp'] / 10) * 1.5 if sami else 1)
-                        if u1['capture'] >= 20:  # capture happened!
+                        if u1['capture'] >= 20 or (sami and SCOP):  # capture happened!
+                            u1['capture'] = 20
                             self.capture_success(desired_pos)
 
             case 'fire':
@@ -808,11 +823,23 @@ class Engine:
                         counter = False
                     u1['Dtr'] = self.map_info[1][desired_pos]  # 1: stars
                     u1['terr'] = self.map_info[5][desired_pos]  # 5: special (plain=4)
-                    if u1['type'] in indr and javier:  # if javier owns this
-                        u2['Dv'] += 40
-                    u1, u2 = fire(u1, u2, counter)
-                    if u1['type'] in indr and javier:  # reset javier
-                        u2['Dv'] -= 40
+
+                    # weird CO buffs
+                    if u1['type'] in indr and javier:  # if being shot by indirect and javier owns enemy unit
+                        u2['Dv'] += 80 if eSCOP else (40 if eCOP else 20)  # enemy javier (power) indirect defence
+                    elif (kanbei and eSCOP) or (sonja and not eSCOP):  # sonja doesn't get 1.5x on SCOP right?
+                        u2['Av'] = int(u2['Av'] * 1.5)  # assume how this 1.5x damage works
+
+                    if sonja and counter and eSCOP:
+                        u2, u1 = fire(u2, u1, counter)  # swap order
+                    else:
+                        u1, u2 = fire(u1, u2, counter)
+
+                    # reset weird CO buffs
+                    if u1['type'] in indr and javier:
+                        u2['Dv'] -= 80 if eSCOP else (40 if eCOP else 20)
+                    elif (kanbei and eSCOP) or (sonja and not eSCOP):
+                        u2['Av'] = int(u2['Av'] * 1.5)  # assume how this 1.5x damage works
 
             case 'repair':
                 if target_pos is None:
@@ -827,7 +854,7 @@ class Engine:
                 u2['fuel'] = types[u2['type']][1]
                 display_hp2 = int(1 + u1['hp'] / 10)
                 if u1['type'] == 'bboat':
-                    if self.turns % 2 == 0 and self.p1['funds'] >= u2['value'] / 10 :
+                    if self.turns % 2 == 0 and self.p1['funds'] >= u2['value'] / 10:
                         u2['hp'] += 10
                     elif self.turns % 2 == 1 and self.p1['funds'] >= u2['value'] / 10:
                         u2['hp'] += 10
@@ -863,9 +890,13 @@ class Engine:
             if self.turns % 2 == 0:  # even turn means p1 turn
                 self.p1['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
                 self.p2['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
+                if sasha and SCOP:
+                    self.p1['funds'] += int(0.5 * u2_dmg_value)
             else:
                 self.p2['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
                 self.p1['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
+                if sasha and SCOP:
+                    self.p2['funds'] += int(0.5 * u2_dmg_value)
 
         # manage units that need deleting
         for u in [u1, u2, u3]:
@@ -929,14 +960,16 @@ class Engine:
     def build(self, pos=None, typ=None):
         if pos is None:
             pos = self.get_poses_from_UI(1)
-            typ = self.prodcombo.get()
+            typ = self.prodcombo.get()  # format is 'inf', 'bcopter', ...
 
         if self.turns % 2 == 0:
             army = self.p1['army']
             funds = self.p1['funds']
+            hachiSCOP = self.p1['name'] == 'hachi' and self.p1['power'] == 2
         else:
             army = self.p2['army']
             funds = self.p2['funds']
+            hachiSCOP = self.p2['name'] == 'hachi' and self.p2['power'] == 2
 
         if army != [
             'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
@@ -945,23 +978,26 @@ class Engine:
         ][self.map_info[0][pos]]:  # if that space (production hopefully) owned by this turn's player
             raise CustomError("this player doesn't own that space")
 
+        sea = typ in ['bship', 'bboat', 'carrier', 'cruiser', 'lander', 'sub']
+        air = typ in ['bcopter', 'bbomb', 'bomber', 'fighter', 'stealth', 'tcopter']
         typfail = True
         match self.map_info[3][pos]:  # combination base + land unit, port + sea unit,...
             case 1:  # base
-                if typ in ['aa', 'apc', 'arty', 'inf',
-                           'med', 'mech', 'mega', 'missile', 'neo', 'pipe', 'recon', 'rocket',
-                           'tank']:
+                if not sea and not air:
                     typfail = False
             case 2:  # port
-                if typ in ['bship', 'bboat', 'carrier', 'cruiser', 'lander', 'sub']:
+                if sea:
                     typfail = False
             case 3:  # airport
-                if typ in ['bcopter', 'bbomb', 'bomber', 'fighter', 'stealth', 'tcopter']:
+                if air:
                     typfail = False
-            case _:  # 0 = none, any building that isn't production (hq hehe)
-                raise CustomError("no production at that location")
+            case 0:  # 0 = none, any building that isn't production
+                if not sea and not air and hachiSCOP and self.map_info[1][pos] == 3 and self.map_info[2][pos] == 1:
+                    typfail = False
+                else:
+                    raise CustomError("no production at that location")
         if typfail:
-            raise CustomError("bases make land/pipe, ports make sea, airports make air. wrong combo attempted")
+                raise CustomError("bases make land/pipe, ports make sea, airports make air. wrong combo attempted")
 
         if self.return_unit(pos) is not None:  # if unit is there
             raise CustomError("unit already in that location")
@@ -1083,6 +1119,7 @@ class Engine:
             self.p1['properties'] += 1
             self.map_info[0][position] = armies.index(self.p1['army'])
             enemy_army = self.p2['army']
+            # todo com tower
         else:
             self.p2['properties'] += 1
             self.map_info[0][position] = armies.index(self.p2['army'])
@@ -1110,9 +1147,9 @@ class Engine:
         for e in np.argwhere(self.map_info[0] != 0):
             if self.map_info[2][e[0], e[1]] != 0:  # if it can repair it provides income :>
                 if armies[self.map_info[0][e[0], e[1]]] == self.p1['army']:
-                    self.p1['income'] += 1000
+                    self.p1['income'] += 1000 + (0 if self.p1['name'] != 'sasha' else 100)
                 elif armies[self.map_info[0][e[0], e[1]]] == self.p2['army']:
-                    self.p2['income'] += 1000
+                    self.p2['income'] += 1000 + (0 if self.p2['name'] != 'sasha' else 100)
                 else:
                     raise CustomError("Somehow a property is not neutral and not either army. huh")
 
@@ -1215,6 +1252,9 @@ class Engine:
                         for target in p2['units']:  # only enemy get stunned even though self damage is done? todo check
                             if target['position'] == pos:  # search for a unit in that position
                                 target['move'] = 0
+        elif p1['name'] in ['drake', 'olaf']:
+            rain_snow = 1  # todo remove rain/snow
+            # only remove it if the other player hasn't made it also happen before they ended turn!!!!!
 
         self.income_update()
         return p1, p2
