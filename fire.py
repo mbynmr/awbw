@@ -50,10 +50,10 @@ def damage_calc_bounds(u1, u2):
 def compatible(u1, u2):
     if u2['hidden']:
         if u2['type'] == 'sub':
-            if u1['type'] != 'cruiser':
+            if u1['type'] != 'cruiser' and u1['type'] != 'sub':  # cruisers or other subs
                 return False
         elif u2['type'] == 'stealth':
-            if u1['type'] != 'fighter':
+            if u1['type'] != 'fighter' and u1['type'] != 'stealth':  # fighters or other stealths
                 return False
     if base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '') != 0 and u1['ammo'] != 0:
         return True

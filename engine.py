@@ -12,7 +12,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg  # , NavigationT
 # from tkinter import filedialog, scrolledtext
 # from matplotlib.pyplot import close as matplotlibclose
 
-from co import co_maker, activate_or_deactivate_power
+from co import co_maker, activate_or_deactivate_power, turn_resupplies
 from unit import unit_maker, name_to_filename
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
@@ -29,74 +29,86 @@ from pathfind import path_find
 # todo fuel use + (hidden/submerged)
 # todo unit cap (50 units per side?)
 # todo lab cap win
+# todo hidden units being hidden (at that point you can do fog pretty much)
 # todo damage:
 #  sonja SCOP attack order
 #  kanbei & sonja counterattack damage
 
+# todo seperate out Engine (runs game) and GUI (runs graphics, runs an instance of Engine)
+
 
 class Engine:
     """
-    big main class for GUI (which deals with everything else)
+    big main class for GUI
     """
 
-    def __init__(self, render=False):
-        self.render = render
-
-        self.w = tk.Tk(className='awbw')
-        self.w.geometry("1920x1030")  # this is the worst. i hate it.
-        self.w.state('zoomed')
-        # self.w.resizable(False, False)
-
-        # tk.StringVar(self.w, value='single')
-        # tk.IntVar(self.w, value=1)
-        # tk.BooleanVar(self.w, value=True)
-        # tk.DoubleVar(self.w, value=50)
-
-        # co & stats
-        self.p1 = co_maker('jake')
-        self.p1['army'] = 'purplelightning'
-        self.p1funds = tk.IntVar(self.w, value=0)
-        self.p1unitc = tk.IntVar(self.w, value=0)
-        self.p1unitv = tk.IntVar(self.w, value=0)
-        self.p1income = tk.IntVar(self.w, value=0)
-        self.p1charge = tk.IntVar(self.w, value=0)
-        self.p1copcost = tk.IntVar(self.w, value=0)
-        self.p1scopcost = tk.IntVar(self.w, value=0)
-        self.p1combo = tk.StringVar(self.w)
-        self.p1combo.trace('w', self.combochange)
-        self.p1detailammo = tk.IntVar(self.w, value=0)
-        self.p1detailfuel = tk.IntVar(self.w, value=0)
-        self.p1detailstars = tk.IntVar(self.w, value=0)
-        self.p1detailrange = tk.StringVar(self.w, value='1-1')
-
-        self.p2 = co_maker('jess')
-        self.p2['army'] = 'yellowcomet'
-        self.p2name = self.p2['name']
-        self.p2funds = tk.IntVar(self.w, value=0)
-        self.p2unitc = tk.IntVar(self.w, value=0)
-        self.p2unitv = tk.IntVar(self.w, value=0)
-        self.p2income = tk.IntVar(self.w, value=0)
-        self.p2charge = tk.IntVar(self.w, value=0)
-        self.p2copcost = tk.IntVar(self.w, value=0)
-        self.p2scopcost = tk.IntVar(self.w, value=0)
-        self.p2combo = tk.StringVar(self.w)
-        self.p2combo.trace('w', self.combochange)
-        self.p2detailammo = tk.IntVar(self.w, value=0)
-        self.p2detailfuel = tk.IntVar(self.w, value=0)
-        self.p2detailstars = tk.IntVar(self.w, value=0)
-        self.p2detailrange = tk.StringVar(self.w, value='1-1')
+    def __init__(self, render=False, replay=None):
+        self.render = render  # True means visually playing the game, False is speedily playing and writing to file
 
         self.winner = 0
-        self.prodcombo = tk.StringVar(self.w)
-        self.costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
         self.turns = -1
-        self.turns_display = tk.IntVar(self.w, value=int(self.turns))
-        self.days = tk.IntVar(self.w, value=int(self.turns / 2) + 1)
+        self.costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
         self.map_info = ([], [], [], [], [], [])  # ownedby, stars, repair, production, access, special
-        self.von_bolt_missiles = []  # [[turn popped, (position popped)], [turn, (pos)], [turn, (pos)], ...] missiles
+        self.von_bolt_missile = [-20, (-20, -20)]  # [turn popped, (position popped)]
+        self.mp = r"maps\Last Vigil.txt"
+        production = [
+            'aa', 'apc', 'arty', 'bcopter', 'bship', 'bboat', 'bbomb', 'bomber', 'carrier', 'cruiser', 'fighter', 'inf',
+            'lander', 'med', 'mech', 'mega', 'missile', 'neo', 'pipe', 'recon', 'rocket', 'stealth', 'sub', 'tcopter',
+            'tank'
+        ]
 
-        # figure display
+        # co
+        self.p1 = co_maker('jake', 'purplelightning')
+        self.p2 = co_maker('jess', 'yellowcomet')
+
+        # replay viewer vs live play
+        if replay is None:  # live play
+            self.replayfile = open('replays/' + '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + '.txt',
+                                   'w')  # save replay file in this mode
+            self.replay_save()
+        else:  # replay viewer mode
+            self.replayfile = FakeReplay()  # don't save replay file in this mode
+            self.replay_load(replay)
+
         if self.render:
+            self.w = tk.Tk(className='awbw')
+            self.w.geometry("1920x1030")  # this is the worst. i hate it.
+            self.w.state('zoomed')
+            # self.w.resizable(False, False)
+            # co1
+            self.p1funds = tk.IntVar(self.w, value=0)
+            self.p1unitc = tk.IntVar(self.w, value=0)
+            self.p1unitv = tk.IntVar(self.w, value=0)
+            self.p1income = tk.IntVar(self.w, value=0)
+            self.p1charge = tk.IntVar(self.w, value=0)
+            self.p1copcost = tk.IntVar(self.w, value=0)
+            self.p1scopcost = tk.IntVar(self.w, value=0)
+            self.p1combo = tk.StringVar(self.w)
+            self.p1combo.trace('w', self.combochange)
+            self.p1detailammo = tk.IntVar(self.w, value=0)
+            self.p1detailfuel = tk.IntVar(self.w, value=0)
+            self.p1detailstars = tk.IntVar(self.w, value=0)
+            self.p1detailrange = tk.StringVar(self.w, value='1-1')
+
+            # co2
+            self.p2funds = tk.IntVar(self.w, value=0)
+            self.p2unitc = tk.IntVar(self.w, value=0)
+            self.p2unitv = tk.IntVar(self.w, value=0)
+            self.p2income = tk.IntVar(self.w, value=0)
+            self.p2charge = tk.IntVar(self.w, value=0)
+            self.p2copcost = tk.IntVar(self.w, value=0)
+            self.p2scopcost = tk.IntVar(self.w, value=0)
+            self.p2combo = tk.StringVar(self.w)
+            self.p2combo.trace('w', self.combochange)
+            self.p2detailammo = tk.IntVar(self.w, value=0)
+            self.p2detailfuel = tk.IntVar(self.w, value=0)
+            self.p2detailstars = tk.IntVar(self.w, value=0)
+            self.p2detailrange = tk.StringVar(self.w, value='1-1')
+
+            self.prodcombo = tk.StringVar(self.w)
+            self.turns_display = tk.IntVar(self.w, value=0)
+            self.days = tk.IntVar(self.w, value=int(self.turns / 2) + 1)
+            # figure display
             self.my_dpi = 102
             # self.figdims = [662, 515]  # *2 works for this map ig [1324, 1030] with max of roughly [1500, 1000]
             self.figdims = [662 * 2, 515 * 2]
@@ -114,50 +126,83 @@ class Engine:
             # panel1 = tk.Label(root, image=tkimage)
             # panel1.grid(row=0, column=2, sticky=E)
 
-        # tabs
-        details_nb = notebook(self.w, width=370, height=900)
-        details_nb.place(relx=0.8, rely=0.01)
-        game_tab = tk.Frame(details_nb)
-        details_nb.add(game_tab, text='Game')
-        mp = r"maps\Last Vigil.txt"
-        self.map_path = tk.StringVar(self.w, value=mp)
-        self.entry_path = tk.Entry(game_tab, textvariable=self.map_path, width=55)
-        self.game_widgets(game_tab)
-        co_tab = tk.Frame(details_nb)
-        details_nb.add(co_tab, text='CO & unit')
-        self.scale_curx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
-        self.scale_cury = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
-        self.scale_desx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
-        self.scale_desy = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
-        self.scale_tarx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
-        self.scale_tary = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
-        self.p1cop = tk.Button(co_tab, text='COP', command=self.p1COP)
-        self.p1scop = tk.Button(co_tab, text='SCOP', command=self.p1SCOP)
-        self.p2cop = tk.Button(co_tab, text='COP', command=self.p2COP)
-        self.p2scop = tk.Button(co_tab, text='SCOP', command=self.p2SCOP)
-        self.p1cb = tk.ttk.Combobox(co_tab, width=23, textvariable=self.p1combo)
-        self.p2cb = tk.ttk.Combobox(co_tab, width=23, textvariable=self.p2combo)
-        self.productioncb = tk.ttk.Combobox(co_tab, width=13, textvariable=self.prodcombo)
-        self.productioncb['values'] = [
-            'aa', 'apc', 'arty', 'bcopter', 'bship', 'bboat', 'bbomb', 'bomber', 'carrier', 'cruiser', 'fighter', 'inf',
-            'lander', 'med', 'mech', 'mega', 'missile', 'neo', 'pipe', 'recon', 'rocket', 'stealth', 'sub', 'tcopter',
-            'tank'
-        ]
-        self.co_widgets(co_tab)
-        page3 = tk.Frame(details_nb)
-        details_nb.add(page3, text='debug')
+            # tabs
+            details_nb = notebook(self.w, width=370, height=900)
+            details_nb.place(relx=0.8, rely=0.01)
+            game_tab = tk.Frame(details_nb)
+            details_nb.add(game_tab, text='Game')
+            self.map_path = tk.StringVar(self.w, value=self.mp)
+            self.entry_path = tk.Entry(game_tab, textvariable=self.map_path, width=55)
+            self.game_widgets(game_tab)
+            co_tab = tk.Frame(details_nb)
+            details_nb.add(co_tab, text='CO & unit')
+            self.scale_curx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
+            self.scale_cury = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
+            self.scale_desx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
+            self.scale_desy = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
+            self.scale_tarx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
+            self.scale_tary = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
+            self.p1cop = tk.Button(co_tab, text='COP', command=self.p1COP)
+            self.p1scop = tk.Button(co_tab, text='SCOP', command=self.p1SCOP)
+            self.p2cop = tk.Button(co_tab, text='COP', command=self.p2COP)
+            self.p2scop = tk.Button(co_tab, text='SCOP', command=self.p2SCOP)
+            self.p1cb = tk.ttk.Combobox(co_tab, width=23, textvariable=self.p1combo)
+            self.p2cb = tk.ttk.Combobox(co_tab, width=23, textvariable=self.p2combo)
+            self.productioncb = tk.ttk.Combobox(co_tab, width=13, textvariable=self.prodcombo)
+            self.productioncb['values'] = production
+            self.co_widgets(co_tab)
+            page3 = tk.Frame(details_nb)
+            details_nb.add(page3, text='debug')
 
-        # other widgets
-        # map_nb = notebook(self.w)
-        self.widgets()
-        # print command redirect
-        self.print_box = scrolledtext.ScrolledText(page3, width=43, height=50)
-        self.print_box.place(relx=0.01, rely=0.02)
-        self.Writer = Writer(self.print_box)
+            # other widgets
+            # map_nb = notebook(self.w)
+            self.widgets()
+            # print command redirect
+            self.print_box = scrolledtext.ScrolledText(page3, width=43, height=50)
+            self.print_box.place(relx=0.01, rely=0.02)
+            self.Writer = Writer(self.print_box)
+            self.update(False)  # don't load map & units in update bcus it isn't loaded yet.
+            self.w.mainloop()
+        else:
+            self.update()
 
-        self.update(False)  # don't load map & units in update bcus it isn't loaded yet.
-        # self.load_map()
-        self.w.mainloop()
+    def replay_load(self, replay):
+        with open(replay, 'r') as replayfile:
+            toplines = replayfile[0:3]  # top 3 lines are details
+            # line0: map
+            # line1: co1
+            # line2: co2
+            replayfile = replayfile[3:]
+            for line in replayfile:
+                if line != 'turn' and line != 'winner':
+                    line.split(' ')
+                    pos = (line[2], line[1])
+                    match line[0]:  # action
+                        case 'build':
+                            unit_being_built = line[3]
+                        case 'fire':
+                            pos_destination = (line[4], line[3])
+                            pos_target = (line[6], line[5])
+                        case 'wait':
+                            pos_destination = (line[4], line[3])
+                        case 'delete':
+                            unit_deleted = pos
+                        case 'unload':
+                            unit_deleted = pos
+                            pos_target = (line[4], line[3])
+                elif line == 'turn':
+                    call_turn_end = 1  # todo
+                else:
+                    print(line)
+                    self.winner = 1  # todo make sure this is the last line in the file?
+
+    def replay_view(self):
+        x = 1  # visual replay viewing
+
+    def replay_save(self):
+        self.replayfile.write(self.mp)
+        self.replayfile.write(str(self.p1))
+        self.replayfile.write(str(self.p2))
 
     def widgets(self):
         parent = self.w
@@ -182,8 +227,7 @@ class Engine:
         tk.Button(parent, text='End turn', command=self.turn_end).place(relx=0.15, rely=0.3)
 
     def co_widgets(self, parent):
-        #todo check anchor=e and w for all of them. need to add a number rly to check!
-        # "CO controls go here (power buttons + bars + details ig)
+        # CO controls go here (power buttons + bars + details ig)
         tk.ttk.Separator(parent, orient='vertical').place(relx=0.5, rely=0, relwidth=0.001, relheight=0.49)
 
         armies = {
@@ -259,7 +303,7 @@ class Engine:
         self.scale_tary.place(relx=0.01, rely=0.83)
         tk.Label(parent, text='target (x, y)').place(relx=0.14, rely=0.835)
         tk.Button(parent, text='Move & fire', command=self.fire).place(relx=0.2, rely=0.86)
-        tk.Button(parent, text='Move & repair', command=self.repair).place(relx=0.2, rely=0.90)
+        tk.Button(parent, text='Move & repair/supply', command=self.repair).place(relx=0.2, rely=0.90)
         # tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.8, relwidth=1, relheight=0.001)
 
         # tk.ttk.Separator(parent, orient='vertical').place(relx=0.68, rely=0.49, relwidth=0.001, relheight=0.2)
@@ -274,87 +318,93 @@ class Engine:
                 raise WinError(f"winner!!!! p1 in {self.turns} turns")
             else:
                 raise WinError(f"winner!!!! p2 in {self.turns} turns")
-        self.p1funds.set(self.p1['funds'])
-        self.p1unitc.set(len(self.p1['units']))
-        v = 0
-        # if not sonja bcus she hides her total unit value!
-        for e in self.p1['units']:
-            display_hp = int(1 + e['hp'] / 10)
-            v += int(e['value'] * display_hp / 10)  # full value * visible hp
-        self.p1unitv.set(v)
 
-        self.p2funds.set(self.p2['funds'])
-        self.p2unitc.set(len(self.p2['units']))
-        v = 0
-        for e in self.p2['units']:
-            display_hp = int(1 + e['hp'] / 10)
-            v += int(e['value'] * display_hp / 10)  # full value * visible hp / 10
-        self.p2unitv.set(v)
+        if self.render:
+            self.p1funds.set(self.p1['funds'])
+            self.p1unitc.set(len(self.p1['units']))
+            v = 0
+            # if not sonja bcus she hides her total unit value!
+            for e in self.p1['units']:
+                display_hp = int(1 + e['hp'] / 10)
+                v += int(e['value'] * display_hp / 10)  # full value * visible hp
+            self.p1unitv.set(v)
 
-        # visual things below this point!
+            self.p2funds.set(self.p2['funds'])
+            self.p2unitc.set(len(self.p2['units']))
+            v = 0
+            for e in self.p2['units']:
+                display_hp = int(1 + e['hp'] / 10)
+                v += int(e['value'] * display_hp / 10)  # full value * visible hp / 10
+            self.p2unitv.set(v)
 
-        self.charge_update()
-        self.p1copcost.set(self.p1['COP'] * self.costs[self.p1['starcost']] * 9000)
-        self.p1scopcost.set(self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000)
-        self.p2copcost.set(self.p2['COP'] * self.costs[self.p2['starcost']] * 9000)
-        self.p2scopcost.set(self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000)
-        self.combobox_update()
+            # visual things below this point!
+            self.charge_update()
+            self.p1copcost.set(self.p1['COP'] * self.costs[self.p1['starcost']] * 9000)
+            self.p1scopcost.set(self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000)
+            self.p2copcost.set(self.p2['COP'] * self.costs[self.p2['starcost']] * 9000)
+            self.p2scopcost.set(self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000)
+            self.combobox_update()
 
-        # unit visual display
-        if draw is None and self.render:
-            dims = self.map_info[0].shape
-            r = 1 / dims[1]
-            self.fig.clear()  # find a better way than this. deleting and remaking every time isn't the best
-            self.fig.add_axes([0, 0, 1, 1]).imshow(self.map_bg)
-            plt.setp(plt.gca(), xticks=[], yticks=[])  # hide axes
-            # might be bottom-left centred. not sure
-            for unit in self.p1['units']:
-                if unit['position'] != (-10, -10):
-                    # /home/nathaniel/PycharmProjects/awbw/units/pc{name_to_filename(unit['type'])}.gif
-                    # img = mpimg.imread(f"units/pc{name_to_filename(unit['type'])}.gif")
-                    self.fig.add_axes(
-                        [r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
-                    ).imshow(mpimg.imread(f"units/pc{name_to_filename(unit['type'])}.gif"))
-                    plt.gca().axis("off")
-                    # plt.setp(plt.gca(), xticks=[], yticks=[])  # hide ticks but keep white space and black outline
-                    # plt.gca().patch.set_alpha(0)  # hide white space
-            for unit in self.p2['units']:
-                if unit['position'] != (-10, -10):
-                    # /home/nathaniel/PycharmProjects/awbw/units/bd{name_to_filename(unit['type'])}.gif
-                    # img = mpimg.imread(f"units/bd{name_to_filename(unit['type'])}.gif")
-                    self.fig.add_axes(
-                        [r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
-                    ).imshow(mpimg.imread(f"units/bd{name_to_filename(unit['type'])}.gif"))
-                    plt.gca().axis("off")
-            self.canvas.draw()
+            # unit visual display
+            if draw is None:
+                dims = self.map_info[0].shape
+                r = 1 / dims[1]
+                self.fig.clear()  # find a better way than this. deleting and remaking every time isn't the best
+                self.fig.add_axes([0, 0, 1, 1]).imshow(self.map_bg)
+                plt.setp(plt.gca(), xticks=[], yticks=[])  # hide axes
+                # might be bottom-left centred. not sure
+                for unit in self.p1['units']:
+                    if unit['position'] != (-10, -10):
+                        # /home/nathaniel/PycharmProjects/awbw/units/pc{name_to_filename(unit['type'])}.gif
+                        # img = mpimg.imread(f"units/pc{name_to_filename(unit['type'])}.gif")
+                        self.fig.add_axes(
+                            [r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
+                        ).imshow(mpimg.imread(f"units/pc{name_to_filename(unit['type'])}.gif"))
+                        plt.gca().axis("off")
+                        # plt.setp(plt.gca(), xticks=[], yticks=[])  # hide ticks but keep white space and black outline
+                        # plt.gca().patch.set_alpha(0)  # hide white space
+                for unit in self.p2['units']:
+                    if unit['position'] != (-10, -10):
+                        # /home/nathaniel/PycharmProjects/awbw/units/bd{name_to_filename(unit['type'])}.gif
+                        # img = mpimg.imread(f"units/bd{name_to_filename(unit['type'])}.gif")
+                        self.fig.add_axes(
+                            [r * unit['position'][1], 1 - (14 / 11) * (r * unit['position'][0] + 0.95 * r), r, r]
+                        ).imshow(mpimg.imread(f"units/bd{name_to_filename(unit['type'])}.gif"))
+                        plt.gca().axis("off")
+                self.canvas.draw()
 
     def load_map(self):
-        self.map_info = load_map(self.map_path.get())
-        self.scale_curx.configure(to=self.map_info[0].shape[1] - 1)
-        self.scale_cury.configure(to=self.map_info[0].shape[0] - 1)
-        self.scale_desx.configure(to=self.map_info[0].shape[1] - 1)
-        self.scale_desy.configure(to=self.map_info[0].shape[0] - 1)
-        self.scale_tarx.configure(to=self.map_info[0].shape[1] - 1)
-        self.scale_tary.configure(to=self.map_info[0].shape[0] - 1)
+        if self.render:
+            self.map_info = load_map(self.map_path.get())
+        else:
+            self.map_info = load_map(self.mp)
         # ownedby, stars, repair, production, access, special
         armies = [
             'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun', 'orangestar',
             'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy', 'purplelightning',
             'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
         ]
+        self.income_update()
+
+        if self.render:
+            self.scale_curx.configure(to=self.map_info[0].shape[1] - 1)
+            self.scale_cury.configure(to=self.map_info[0].shape[0] - 1)
+            self.scale_desx.configure(to=self.map_info[0].shape[1] - 1)
+            self.scale_desy.configure(to=self.map_info[0].shape[0] - 1)
+            self.scale_tarx.configure(to=self.map_info[0].shape[1] - 1)
+            self.scale_tary.configure(to=self.map_info[0].shape[0] - 1)
+            plt.subplots_adjust(wspace=0, hspace=0)
+            plt.tight_layout()
+            # print('background displayed!')
+            # self.ax.axis("off")
+            self.map_bg = mpimg.imread(self.map_path.get().split('.txt')[0] + '.png')
+            # self.map_bg = mpimg.imread('/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.png')
+
         for e in np.argwhere(self.map_info[0] != 0):  # 0 is neutral
             if armies[self.map_info[0][e[0], e[1]]] == self.p1['army']:
                 self.p1['properties'] += 1
             elif armies[self.map_info[0][e[0], e[1]]] == self.p2['army']:
                 self.p2['properties'] += 1
-        self.income_update()
-        plt.subplots_adjust(wspace=0, hspace=0)
-        plt.tight_layout()
-        # print('background displayed!')
-        # self.ax.axis("off")
-        self.map_bg = mpimg.imread(self.map_path.get().split('.txt')[0] + '.png')
-        # self.map_bg = mpimg.imread('/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.png')
-
         self.load_map_units()
         self.turn_end()
 
@@ -434,15 +484,20 @@ class Engine:
                 self.ax_display_move[-1].axis("off")
         self.canvas.draw()
 
-    def load_map_units(self):
+    def load_map_units(self, map_path=None):
         # wipe units
         self.p1['units'] = []
         self.p2['units'] = []
 
         # load units from file
-        # with open('') as file:
         # /home/nathaniel/PycharmProjects/awbw/maps/Last Vigil units.txt
-        with open(self.map_path.get().split('.txt')[0] + ' units.txt') as file:
+
+        if map_path is None:
+            path = self.map_path.get().split('.txt')[0] + ' units.txt'
+        else:
+            path = map_path.split('.txt')[0] + ' units.txt'
+
+        with open(path) as file:
             for line in file:
                 army, typ, x, y = line.split(', ')
                 pos = (int(y), int(x))  # todo tuple not list, b careful
@@ -595,7 +650,34 @@ class Engine:
                 raise CustomError(f"not enough move")
             else:
                 raise CustomError(f"move is impossible for some reason")
-        # elif movecost >
+
+        types = {
+                        'aa': [9, 60],
+                        'apc': [0, 60],
+                        'arty': [9, 50],
+                        'bcopter': [6, 99],
+                        'bship': [9, 99],
+                        'bboat': [-1, 50],
+                        'bbomb': [0, 45],
+                        'bomber': [9, 99],
+                        'carrier': [9, 99],
+                        'cruiser': [9, 99],
+                        'fighter': [9, 99],
+                        'inf': [-1, 99],
+                        'lander': [0, 99],
+                        'med': [8, 50],
+                        'mech': [3, 70],
+                        'mega': [3, 50],
+                        'missile': [6, 50],
+                        'neo': [9, 99],
+                        'pipe': [9, 99],
+                        'recon': [-1, 80],
+                        'rocket': [6, 50],
+                        'stealth': [6, 60],
+                        'sub': [6, 60],
+                        'tcopter': [0, 99],
+                        'tank': [9, 70]
+                    }  # ammo, fuel
 
         u2 = self.return_unit(target_pos)  # unit being fired on
         if u2 is not None:
@@ -630,37 +712,15 @@ class Engine:
                         # 5(1) + 12(2) = 20(3) NOT 17(2)
                         # 45(5) + 40(5) = 95(10)
                         # 55(6) + 40(5) = 105-99(10)
-                        if u3['hp'] > 99:  # if the unit went over 99 hp
+                        if u3['hp'] >= 99:  # if the unit went over 99 hp
                             u3['hp'] = 99  # cap it
-                        elif int(1 + (u3['hp']) / 10) < display_hp1 + display_hp3:
+                            if display_hp1 + display_hp3 > 10:  # if the display hps add to more than 10, get funds.
+                                if self.turns % 2 == 0:
+                                    self.p1['funds'] += u3['value'] * (display_hp1 + display_hp3 - 10) / 10
+                                else:
+                                    self.p2['funds'] += u3['value'] * (display_hp1 + display_hp3 - 10) / 10
+                        elif int(1 + (u3['hp']) / 10) < display_hp1 + display_hp3:  # if display hps didn't add
                             u3['hp'] = (display_hp1 + display_hp3 - 1) * 10  # bump it up a bit to add display hps
-                        types = {
-                            'aa': [9, 60],
-                            'apc': [0, 60],
-                            'arty': [9, 50],
-                            'bcopter': [6, 99],
-                            'bship': [9, 99],
-                            'bboat': [-1, 50],
-                            'bbomb': [0, 45],
-                            'bomber': [9, 99],
-                            'carrier': [9, 99],
-                            'cruiser': [9, 99],
-                            'fighter': [9, 99],
-                            'inf': [-1, 99],
-                            'lander': [0, 99],
-                            'med': [8, 50],
-                            'mech': [3, 70],
-                            'mega': [3, 50],
-                            'missile': [6, 50],
-                            'neo': [9, 99],
-                            'pipe': [9, 99],
-                            'recon': [-1, 80],
-                            'rocket': [6, 50],
-                            'stealth': [6, 60],
-                            'sub': [6, 60],
-                            'tcopter': [0, 99],
-                            'tank': [9, 70]
-                        }  # ammo, fuel
                         max_ammo = types[u3['type']][0]
                         max_fuel = types[u3['type']][1]
                         u3['ammo'] = max_ammo if u3['ammo'] > max_ammo else u3['ammo']  # cap it
@@ -714,10 +774,7 @@ class Engine:
                         'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
                     ][self.map_info[0][desired_pos]] and self.map_info[5][desired_pos] == 5:
                         # if tile is not owned by friendly, terrain is urban
-                        if sami:
-                            u1['capture'] += int(int(1 + u1['hp'] / 10) * 1.5)
-                        else:
-                            u1['capture'] += int(1 + u1['hp'] / 10)
+                        u1['capture'] += int(int(1 + u1['hp'] / 10) * 1.5 if sami else 1)
                         if u1['capture'] >= 20:  # capture happened!
                             self.capture_success(desired_pos)
 
@@ -760,43 +817,27 @@ class Engine:
             case 'repair':
                 if target_pos is None:
                     raise CustomError("why is no target position selected for repairing?")
+                if u1['type'] not in ['apc', 'bboat']:
+                    raise CustomError(f"{u1['type']} cannot resupply")
                 if u2 is None:
-                    raise CustomError(f"no unit is at target position {target_pos} for repairing")
+                    raise CustomError(f"no unit is at target position {target_pos} for resupply")
                 elif u2['army'] != u1['army']:
-                    raise CustomError("can't repair non-friendlies!")
-                else:
-                    u2['hp'] += 10
-                    if u2['hp'] > 99:
+                    raise CustomError("can't resupply non-friendlies!")
+                u2['ammo'] = types[u2['type']][0]
+                u2['fuel'] = types[u2['type']][1]
+                display_hp2 = int(1 + u1['hp'] / 10)
+                if u1['type'] == 'bboat':
+                    if self.turns % 2 == 0 and self.p1['funds'] >= u2['value'] / 10 :
+                        u2['hp'] += 10
+                    elif self.turns % 2 == 1 and self.p1['funds'] >= u2['value'] / 10:
+                        u2['hp'] += 10
+                    if u2['hp'] >= 90:  # is this how it works? not sure rly.
+                        # case where co has no funds but repairs a 90 (10hp display) unit, does it still go to 99?
                         u2['hp'] = 99
-                        types = {
-                            'aa': [9, 60],
-                            'apc': [0, 60],
-                            'arty': [9, 50],
-                            'bcopter': [6, 99],
-                            'bship': [9, 99],
-                            'bboat': [-1, 50],
-                            'bbomb': [0, 45],
-                            'bomber': [9, 99],
-                            'carrier': [9, 99],
-                            'cruiser': [9, 99],
-                            'fighter': [9, 99],
-                            'inf': [-1, 99],
-                            'lander': [0, 99],
-                            'med': [8, 50],
-                            'mech': [3, 70],
-                            'mega': [3, 50],
-                            'missile': [6, 50],
-                            'neo': [9, 99],
-                            'pipe': [9, 99],
-                            'recon': [-1, 80],
-                            'rocket': [6, 50],
-                            'stealth': [6, 60],
-                            'sub': [6, 60],
-                            'tcopter': [0, 99],
-                            'tank': [9, 70]
-                        }  # ammo, fuel
-                        u2['ammo'] = types[u2['type']][0]
-                        u2['fuel'] = types[u2['type']][1]
+                    if self.turns % 2 == 0:
+                        self.p1['funds'] -= u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10
+                    else:
+                        self.p2['funds'] -= u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10
 
             case 'hide':
                 u1['hidden'] = not u1['hidden']  # wow this one is nice and simple :>
@@ -834,70 +875,61 @@ class Engine:
 
         self.update()  # after the move is done, update the board!
 
-    # def mange_units_after_action(self, u1, u2, u3):
-    #     # upon destruction, check for loaded units and destroy them in the normal unit list :>
-    #     # (don't get charge for loaded units when the carrier is destroyed)
-    #
-    #     # self.delete_unit(u1store)
-    #     # self.delete_unit(u2store)
-    #     # self.delete_unit(u3store)  # handles None unit just fine
-    #
-    #     for u in [u1, u2, u3]:
-    #         if u is not None:
-    #             if u['hp'] < 0:
-    #                 self.delete_unit(u)
-
     def get_poses_from_UI(self, num):
         match num:
             case 1:
                 return self.scale_cury.get(), self.scale_curx.get()
             case 2:
-                return (self.scale_cury.get(), self.scale_curx.get()),\
+                return (self.scale_cury.get(), self.scale_curx.get()), \
                     (self.scale_desy.get(), self.scale_desx.get())
             case 3:
-                return (self.scale_cury.get(), self.scale_curx.get()),\
-                    (self.scale_desy.get(), self.scale_desx.get()),\
+                return (self.scale_cury.get(), self.scale_curx.get()), \
+                    (self.scale_desy.get(), self.scale_desx.get()), \
                     (self.scale_tary.get(), self.scale_tarx.get())
 
-    # def get_poses_from_UI_old(self):
-    #     if self.turns % 2 == 0:  # even turn means p1 turn
-    #         pos = pos_from_combobox(self.p1combo)
-    #         target_pos = pos_from_combobox(self.p2combo)
-    #     else:  # odd turn means p2 turn
-    #         pos = pos_from_combobox(self.p2combo)
-    #         target_pos = pos_from_combobox(self.p1combo)
-    #     return pos, (self.scale_desy.get(), self.scale_desx.get()), target_pos
-
-    def fire(self):
-        pos, desired_pos, target_pos = self.get_poses_from_UI(3)
+    def fire(self, pos=None, desired_pos=None, target_pos=None):
+        if pos is None:
+            pos, desired_pos, target_pos = self.get_poses_from_UI(3)
         try:
             self.action(pos, desired_pos, desired_action='fire', target_pos=target_pos)
+            self.replayfile.write(
+                f"fire {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}")
         except CustomError as Err:
             print(Err)
 
-    def move(self):
-        pos, desired_pos = self.get_poses_from_UI(2)
+    def move(self, pos=None, desired_pos=None):
+        if pos is None:
+            pos, desired_pos = self.get_poses_from_UI(2)
         try:
             self.action(pos, desired_pos, desired_action='wait')
+            self.replayfile.write(f"wait {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]}")
         except CustomError as Err:
             print(Err)
 
-    def hide(self):
-        pos, desired_pos = self.get_poses_from_UI(2)
+    def hide(self, pos=None, desired_pos=None, target_pos=None):
+        if pos is None:
+            pos, desired_pos, target_pos = self.get_poses_from_UI(3)
         try:
             self.action(pos, desired_pos, desired_action='hide')
+            self.replayfile.write(
+                f"hide {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}")
         except CustomError as Err:
             print(Err)
 
-    def repair(self):
-        pos, desired_pos, target_pos = self.get_poses_from_UI(3)
+    def repair(self, pos=None, desired_pos=None, target_pos=None):
+        if pos is None:
+            pos, desired_pos, target_pos = self.get_poses_from_UI(3)
         try:
             self.action(pos, desired_pos, desired_action='repair', target_pos=target_pos)
+            self.replayfile.write(
+                f"repair {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}")
         except CustomError as Err:
             print(Err)
 
-    def build(self):
-        pos = self.get_poses_from_UI(1)
+    def build(self, pos=None, typ=None):
+        if pos is None:
+            pos = self.get_poses_from_UI(1)
+            typ = self.prodcombo.get()
 
         if self.turns % 2 == 0:
             army = self.p1['army']
@@ -913,7 +945,6 @@ class Engine:
         ][self.map_info[0][pos]]:  # if that space (production hopefully) owned by this turn's player
             raise CustomError("this player doesn't own that space")
 
-        typ = self.prodcombo.get()
         typfail = True
         match self.map_info[3][pos]:  # combination base + land unit, port + sea unit,...
             case 1:  # base
@@ -952,7 +983,7 @@ class Engine:
             'med': 16000,
             'mech': 3000,
             'mega': 28000,
-            'missile':  12000,
+            'missile': 12000,
             'neo': 22000,
             'pipe': 20000,
             'recon': 4000,
@@ -976,9 +1007,11 @@ class Engine:
             self.p2['funds'] -= costs[typ]
 
         self.update()
+        self.replayfile.write(f"build {pos[1]} {pos[0]} {typ}")
 
-    def delete_coords(self):
-        pos = self.get_poses_from_UI(1)
+    def delete_coords(self, pos=None):
+        if pos is None:
+            pos = self.get_poses_from_UI(1)
         u = self.return_unit(pos)
         if u is None:
             raise CustomError("no unit at that location")
@@ -991,9 +1024,11 @@ class Engine:
         else:
             raise CustomError("can't delete: that unit isn't owned by the player who's turn it is!")
         self.update()
+        self.replayfile.write(f"delete {pos[1]} {pos[0]}")
 
-    def unload(self):
-        pos = self.get_poses_from_UI(1)
+    def unload(self, pos=None, target_pos=None):
+        if pos is None:
+            pos, target_pos = self.get_poses_from_UI(2)
         # todo this isn't finished. all it does is resupply the lander!
         #  the choice of unit to unload needs to be somewhere in UI, then that fed in here.
         #  the destination of the unloaded unit also needs to be in UI (target pos should b good)
@@ -1036,6 +1071,7 @@ class Engine:
             self.p2['units'].append(u)
 
         self.update()
+        self.replayfile.write(f"unload {pos[1]} {pos[0]} {target_pos[1]} {target_pos[0]}")
 
     def capture_success(self, position):
         armies = [
@@ -1052,11 +1088,7 @@ class Engine:
             self.map_info[0][position] = armies.index(self.p2['army'])
             enemy_army = self.p1['army']
 
-        if enemy_army == [
-                    'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
-                    'orangestar', 'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy',
-                    'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
-                ][self.map_info[0][position]]:  # check whether enemy owned this property before
+        if enemy_army == armies[self.map_info[0][position]]:  # check whether enemy owned this property before
             if self.map_info[1][position] == 4 and self.map_info[5][position] == 5:  # if hq
                 player_wins_by_hq_cap = 1  # todo
             if self.turns % 2 == 0:
@@ -1083,8 +1115,10 @@ class Engine:
                     self.p2['income'] += 1000
                 else:
                     raise CustomError("Somehow a property is not neutral and not either army. huh")
-        self.p1income.set(self.p1['income'])
-        self.p2income.set(self.p2['income'])
+
+        if self.render:
+            self.p1income.set(self.p1['income'])
+            self.p2income.set(self.p2['income'])
 
     def p1COP(self):
         if self.p1['name'] != 'von bolt':
@@ -1093,6 +1127,7 @@ class Engine:
                 self.p1['charge'] -= self.p1['COP'] * self.costs[self.p1['starcost']] * 9000
                 self.p1, self.p2 = activate_or_deactivate_power(self.p1, self.p2, 1)
                 self.update()
+                self.replayfile.write(f"COP")
             else:
                 print("not enough charge or power already activated!")
         else:
@@ -1103,6 +1138,7 @@ class Engine:
             self.p1['charge'] -= self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000
             self.p1, self.p2 = activate_or_deactivate_power(self.p1, self.p2, 2)
             self.update()
+            self.replayfile.write(f"SCOP")
         else:
             print("not enough charge or power already activated!")
 
@@ -1112,6 +1148,7 @@ class Engine:
                 self.p2['charge'] -= self.p2['COP'] * self.costs[self.p2['starcost']] * 9000
                 self.p2, self.p1 = activate_or_deactivate_power(self.p2, self.p1, 1)
                 self.update()
+                self.replayfile.write(f"COP")
             else:
                 print("not enough charge or power already activated!")
         else:
@@ -1122,6 +1159,7 @@ class Engine:
             self.p2['charge'] -= self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000
             self.p2, self.p1 = activate_or_deactivate_power(self.p2, self.p1, 2)
             self.update()
+            self.replayfile.write(f"SCOP")
         else:
             print("not enough charge or power already activated!")
 
@@ -1130,49 +1168,67 @@ class Engine:
             print("load a map before ending turn please")
             return
         self.turns += 1
-        self.turns_display.set(self.turns)
-        self.days.set(int(self.turns / 2) + 1)
+
+        if self.render:
+            self.turns_display.set(self.turns)
+            self.days.set(int(self.turns / 2) + 1)
+
         if self.turns % 2 == 1:  # going to p2 from p1
             self.p1, self.p2 = self.turn_swap(self.p1, self.p2)
         else:  # going to p1 from p2
             self.p2, self.p1 = self.turn_swap(self.p2, self.p1)
+
         self.update()
+        self.replayfile.write('turn')
 
     def turn_swap(self, p1, p2):  # p1 -> p2 turn end/start
         # check win conditions (day limit ig?)
         p1win = False
         if p1['properties'] > 23:
             p1win = True
-        if self.days.get() > 40:  # turn limit 40 days?
+        if self.turns > 40:  # turn limit 40 days?
             if p1['properties'] > 15:
                 p1win = True
-        if self.days.get() >= 2 and len(p2['units']) == 0:  # if p2 has no units and it's not the start of the game
+        if self.turns >= 2 and len(p2['units']) == 0:  # if p2 has no units and it's not the start of the game
             p1win = True
         if p1win:
-            self.winner = p1['army']
+            self.winner = p1['army']  # todo number for winner
 
         p2, p1 = activate_or_deactivate_power(p2, p1, -p2['power'])  # p2's power gets deactivated if it was on
-        p2['funds'] += p2['income']
-        repair = 1  # todo rachel +1 repair
-        fuel_and_ammo_resuuply = 1
-        fuel_use = 1
-        crashed_planes_check = 1
-        if p1['name'] == 'von bolt':
-            if self.von_bolt_missiles[-1][0] == self.turns - 1:
-                pos = self.von_bolt_missiles[-1][1]
-                units_move_set_0 = 1  # only enemy get stunned, even though self damage is done? check in a game ig?
+        p2['funds'] += p2['income']  # income before property repairs
+        p2 = turn_resupplies(p2, self.map_info)
+
+        if p1['name'] == 'von bolt':  # check for von bolt power after giving units move so you can take it away
+            if self.von_bolt_missile[0] == self.turns - 1:
+                pos = self.von_bolt_missile[1]
+                x = pos[1]
+                y = pos[0]
+                for pos in [
+                    (y + 2, x),
+                    (y + 1, x - 1), (y + 1, x), (y + 1, x + 1),
+                    (y, x - 2), (y, x - 1), (y, x), (y, x + 1), (y, x + 2),
+                    (y - 1, x - 1), (y - 1, x), (y - 1, x + 1),
+                    (y - 2, x)
+                ]:  # coordinates surrounding the missile centre
+                    if 0 <= pos[1] < self.map_info[0].shape[1] and 0 <= pos[0] < self.map_info[0].shape[0]:
+                        # if the position is a valid coordinate
+                        for target in p2['units']:  # only enemy get stunned even though self damage is done? todo check
+                            if target['position'] == pos:  # search for a unit in that position
+                                target['move'] = 0
+
         self.income_update()
-        self.update()
-        return p1, p2  # not needed  # todo not needed :D
+        return p1, p2
 
     def select_path(self):
         self.map_path.set(filedialog.askdirectory())
         self.entry_path.xview_moveto(1)
 
     def close(self):
-        self.Writer.close()
-        plt.close("all")
-        self.w.destroy()
+        self.replayfile.close()
+        if self.render:
+            self.Writer.close()
+            plt.close("all")
+            self.w.destroy()
 
 
 class Writer:
@@ -1226,8 +1282,12 @@ def pos_from_combobox(combobox_option):
     return int(pos[1][:-1]), int(pos[0][1:-1])
 
 
-def buttonfunc():
-    print('ayy it workie')
+class FakeReplay:
+    def write(self, *args):
+        pass
+
+    def close(self):
+        pass
 
 
 class CustomError(Exception):

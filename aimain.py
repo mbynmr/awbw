@@ -69,6 +69,19 @@ You can use a genetic algorithm on any system which can be randomly "mutated" in
 
 # when the ai reads in self.p1['units'][0]['hp'] it should be garbled to be 1-10hp instead of full info 0-99hp
 
+# train on replays (won't be better than humans)
+# train on itself
+
+# set start state for a given map
+# text file goes through every operation performed (e.g. "cap/wait func" "pos1" "pos2" every line is an action)
+
+
+import tensorflow as tf
+
+
+def test():
+    x = 1
+
 
 class Player:
     def __init__(self):

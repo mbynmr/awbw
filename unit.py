@@ -3,20 +3,21 @@
 def unit_maker(army, typ, co, pos, stars=3, terr=5, hp=99,
                fuel=None, ammo=None, hidden=None, loaded=None, capture=None, move=None):
     # stars defaults to 3 for base etc, same for terr (urban = 5)
+    coname = co['name']
     types = {
         'aa': [6, 9, 60, 0, [1, 1], 'treads', 8000],
-        'apc': [6, 0, 60, 0, [0, 0], 'treads', 5000],
+        'apc': [6 if coname not in ['sami', 'sensei'] else 7, 0, 60, 0, [0, 0], 'treads', 5000],
         'arty': [5, 9, 50, 0, [2, 3], 'treads', 6000],
         'bcopter': [6, 6, 99, 2, [1, 1], 'air', 9000],
-        'bship': [5, 9, 99, 1, [2, 6], 'sea', 28000],
-        'bboat': [7, -1, 50, 1, [0, 0], 'lander', 7500],
+        'bship': [5 if coname != 'drake' else 6, 9, 99, 1, [2, 6], 'sea', 28000],
+        'bboat': [7 if coname not in ['sami', 'sensei', 'drake'] else 8, -1, 50, 1, [0, 0], 'lander', 7500],
         'bbomb': [9, 0, 45, 5, [0, 0], 'air', 25000],
         'bomber': [7, 9, 99, 5, [1, 1], 'air', 22000],
-        'carrier': [5, 9, 99, 1, [3, 8], 'sea', 30000],
-        'cruiser': [6, 9, 99, 1, [1, 1], 'sea', 18000],
+        'carrier': [5 if coname != 'drake' else 6, 9, 99, 1, [3, 8], 'sea', 30000],
+        'cruiser': [6 if coname != 'drake' else 7, 9, 99, 1, [1, 1], 'sea', 18000],
         'fighter': [9, 9, 99, 5, [1, 1], 'air', 20000],
         'inf': [3, -1, 99, 0, [1, 1], 'inf', 1000],
-        'lander': [6, 0, 99, 1, [0, 0], 'lander', 12000],
+        'lander': [6 if coname not in ['sami', 'sensei', 'drake'] else 7, 0, 99, 1, [0, 0], 'lander', 12000],
         'med': [5, 8, 50, 0, [1, 1], 'treads', 16000],
         'mech': [2, 3, 70, 0, [1, 1], 'mech', 3000],
         'mega': [4, 3, 50, 0, [1, 1], 'treads', 28000],
@@ -26,8 +27,8 @@ def unit_maker(army, typ, co, pos, stars=3, terr=5, hp=99,
         'recon': [8, -1, 80, 0, [1, 1], 'tyre', 4000],
         'rocket': [5, 6, 50, 0, [3, 5], 'tyre', 15000],
         'stealth': [6, 6, 60, 5, [1, 1], 'air', 24000],
-        'sub': [5, 6, 60, 1, [1, 1], 'sea', 20000],
-        'tcopter': [6, 0, 99, 2, [0, 0], 'air', 5000],
+        'sub': [5 if coname != 'drake' else 6, 6, 60, 1, [1, 1], 'sea', 20000],
+        'tcopter': [6 if coname not in ['sami', 'sensei'] else 7, 0, 99, 2, [0, 0], 'air', 5000],
         'tank': [6, 9, 70, 0, [1, 1], 'treads', 7000]
     }  # move, ammo, fuel, fuel/day, range, tread, value
     this_unit = types[typ]
@@ -42,7 +43,7 @@ def unit_maker(army, typ, co, pos, stars=3, terr=5, hp=99,
         'hidden': False if hidden is None else hidden, 'loaded': [] if loaded is None else loaded,
         'capture': 0 if capture is None else capture
     }
-    return unit_stats_editor(unit, co['name'], co['comm'], co['power'], co['funds'], co['properties'])
+    return unit_stats_editor(unit, coname, co['comm'], co['power'], co['funds'], co['properties'])
 
 
 def unit_stats_editor(unit, name, comm, power, funds, properties):
