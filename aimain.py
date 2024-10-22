@@ -80,20 +80,77 @@ You can use a genetic algorithm on any system which can be randomly "mutated" in
 # set start state for a given map
 # text file goes through every operation performed (e.g. "cap/wait func" "pos1" "pos2" every line is an action)
 
+import platform
+import numpy as np
 
-import tensorflow as tf
+from customclasses import WinError
+from engine import Engine
+from co import co_maker
 
 
 def test():
-    x = 1
+    if platform.system() == 'Linux':
+        mp = r"/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.txt"
+    else:
+        mp = r"maps/Last Vigil.txt"
+    E = Engine(mp, co_maker('jake', 'purplelightning'), co_maker('jess', 'yellowcomet'))
+
+    P = Player()
+
+    win = 0
+    while win == 0:
+        # todo count total iterations so u win as fast as possible
+        action, pos1, pos2, pos3, unit = P.ask_brain(E.p1, E.p2, E.map_info)
+        # todo round action then lookup from list
+        try:
+            match action:
+                case 'cop':
+                    E.power(1)
+                case 'scop':
+                    E.power(2)
+                case 'turn_end':
+                    E.turn_end()
+                case 'unload':
+                    E.unload(pos1, pos2)
+                case 'move':
+                    E.action(pos1, pos2, desired_action='wait')
+                case 'hide':
+                    E.action(pos1, pos2, desired_action='hide')
+                case 'fire':
+                    E.action(pos1, pos2, desired_action='fire', target_pos=pos3)
+                case 'repair':
+                    E.action(pos1, pos2, desired_action='repair', target_pos=pos3)
+                case 'delete_coords':
+                    E.delete_coords(pos1)
+                case 'build':
+                    E.build(pos1, unit)
+        except WinError as Err:  # silly way of doing it but ok
+            win = Err
+            print(win)
+        finally:
+            win = E.winner
+    print("omg a win???")
 
 
 class Player:
     def __init__(self):
         self.win = 0  # 0 = ongoing, 1 = win, 2 = loss
         self.genomeInputs = 4
-        self.genomeOutputs = 1  #
+        self.genomeOutputs = 1
         self.brain = Genome(self.genomeInputs, self.genomeOutputs)
+
+    def ask_brain(self, p1, p2, map_info):
+        # self.turns
+        # self.p1 (contains updated units and stats and money and charge etc)
+        # self.p2
+        # self.map_info
+        action = np.random.random()  #  [turn_end, scop, cop, build, move, fire, repair, hide, unload, delete_coords]
+        coords1 = (np.random.random(), np.random.random())
+        coords2 = (np.random.random(), np.random.random())
+        coords3 = (np.random.random(), np.random.random())
+        unit = np.random.random()
+        # brain always returns action and 3 coords
+        return action, coords1, coords2, coords3, unit
 
 
 class Genome:

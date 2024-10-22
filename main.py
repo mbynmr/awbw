@@ -1,9 +1,10 @@
 # from testing import unpack
 from GUI import GUI
+from aimain import test
 
 
 def main():
-    GUI()
+    test()
 
 
 if __name__ == '__main__':
