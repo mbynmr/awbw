@@ -1,15 +1,12 @@
 import time
 import numpy as np
-# from PIL import Image
-# from tkinter.ttk import Combobox
-# from tkinter import filedialog, scrolledtext
-# from matplotlib.pyplot import close as matplotlibclose
 
 from co import co_maker, activate_or_deactivate_power, turn_resupplies
 from unit import unit_maker
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
 from pathfind import path_find
+from customclasses import WinError, CustomError
 
 
 # todo sturm & lash movement
@@ -35,67 +32,18 @@ class Engine:
     big main class for game
     """
 
-    def __init__(self, render=False, replay=None):
+    def __init__(self, map_path, render=False):
         self.render = render  # True means visually playing the game, False is speedily playing and writing to file
 
         self.winner = 0
         self.turns = -1
-        self.costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
         self.map_info = ([], [], [], [], [], [])  # ownedby, stars, repair, production, access, special
         self.von_bolt_missile = [-20, (-20, -20)]  # [turn popped, (position popped)]
-        self.mp = r"maps\Last Vigil.txt"
+        self.mp = map_path
 
         # co
         self.p1 = co_maker('jake', 'purplelightning')
         self.p2 = co_maker('jess', 'yellowcomet')
-
-        # replay viewer vs live play
-        if replay is None:  # live play
-            self.replayfile = open('replays/' + '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + '.txt',
-                                   'w')  # save replay file in this mode
-            self.replay_save()
-            self.update(False)
-        else:  # replay viewer mode
-            self.replayfile = FakeReplay()  # don't save replay file in this mode
-            self.replay_load(replay)
-
-    def replay_load(self, replay):
-        with open(replay, 'r') as replayfile:
-            toplines = replayfile[0:3]  # top 3 lines are details
-            # line0: map
-            # line1: co1
-            # line2: co2
-            replayfile = replayfile[3:]
-            for line in replayfile:
-                if line != 'turn' and line != 'winner':
-                    line.split(' ')
-                    pos = (line[2], line[1])
-                    match line[0]:  # action
-                        case 'build':
-                            unit_being_built = line[3]
-                        case 'fire':
-                            pos_destination = (line[4], line[3])
-                            pos_target = (line[6], line[5])
-                        case 'wait':
-                            pos_destination = (line[4], line[3])
-                        case 'delete':
-                            unit_deleted = pos
-                        case 'unload':
-                            unit_deleted = pos
-                            pos_target = (line[4], line[3])
-                elif line == 'turn':
-                    call_turn_end = 1  # todo
-                else:
-                    print(line)
-                    self.winner = 1  # todo make sure this is the last line in the file?
-
-    def replay_view(self):
-        x = 1  # visual replay viewing
-
-    def replay_save(self):
-        self.replayfile.write(self.mp)
-        self.replayfile.write(str(self.p1))
-        self.replayfile.write(str(self.p2))
 
     def update(self, draw=None):
         if self.winner != 0:
@@ -121,66 +69,10 @@ class Engine:
                 self.p1['properties'] += 1
             elif armies[self.map_info[0][e[0], e[1]]] == self.p2['army']:
                 self.p2['properties'] += 1
-        self.load_map_units()
+        self.load_map_units(path)
         self.turn_end()
 
-    def combobox_update(self):
-        # combobox dropdown list thing
-        s = []
-        # if not sonja bcus she hides her unit hps!
-        for unit in self.p1['units']:
-            if unit['position'] != (-10, -10):
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} ({unit['position'][1]}, {unit['position'][0]})"
-                         f" m:{unit['move']}")
-            else:
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} '(loaded)' m:{unit['move']}")
-        self.p1cb['values'] = s
-        if len(s) > 0:
-            self.p1cb.current(0)
-        s = []
-        for unit in self.p2['units']:
-            if unit['position'] != (-10, -10):
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} ({unit['position'][1]}, {unit['position'][0]})"
-                         f" m:{unit['move']}")
-            else:
-                s.append(f"{int(1 + unit['hp'] / 10)} {unit['type']} '(loaded)' m:{unit['move']}")
-        self.p2cb['values'] = s
-        if len(s) > 0:
-            self.p2cb.current(0)
-
-        self.combochange()
-
-    def display_move(self):
-        pos = self.get_poses_from_UI(1)
-        unit = self.return_unit(pos)
-        if unit is None:
-            raise CustomError(f"coords {pos} don't correspond to a unit")
-        if unit['move'] >= 1:
-            self.display_movement(unit)
-        else:
-            self.display_movement(None)
-
-    def display_movement(self, unit=None):
-        for ax in self.ax_display_move:
-            if ax in self.fig.axes:  # find out whether they have already been cleared
-                ax.remove()  # clear first
-        self.ax_display_move = []
-        if unit is not None:
-            for coords in self.check_movement(unit, unit['position']):
-                # x = coords[0]
-                # y = coords[1]
-                # print(f"({x}, {y})")  # these are all allowed positions, it seems to work good but it spams prints
-                r = 1 / self.map_info[0].shape[1]
-                self.ax_display_move.append(self.fig.add_axes(
-                    [r * coords[1], 1 - (14 / 11) * (r * coords[0] + 0.95 * r), r, r]
-                ))
-                img = np.ones([9, 9, 4]) * [0, 0.4, 0.8, 0.8]
-                img[1:-1, 1:-1, :] = [0, 0.4, 0.8, 0.3]
-                self.ax_display_move[-1].imshow(img)
-                self.ax_display_move[-1].axis("off")
-        self.canvas.draw()
-
-    def load_map_units(self, map_path=None):
+    def load_map_units(self, map_path):
         # wipe units
         self.p1['units'] = []
         self.p2['units'] = []
@@ -188,10 +80,7 @@ class Engine:
         # load units from file
         # /home/nathaniel/PycharmProjects/awbw/maps/Last Vigil units.txt
 
-        if map_path is None:
-            path = self.map_path.get().split('.txt')[0] + ' units.txt'
-        else:
-            path = map_path.split('.txt')[0] + ' units.txt'
+        path = map_path.split('.txt')[0] + ' units.txt'
 
         with open(path) as file:
             for line in file:
@@ -206,7 +95,7 @@ class Engine:
                 else:
                     raise CustomError(f"neither player is {army}")
 
-    def return_unit(self, pos=None):
+    def return_unit(self, pos):
         if pos is None:
             return None
         for unit in self.p1['units']:
@@ -237,7 +126,7 @@ class Engine:
         # todo sturm, lash SCOP, snow, rain affect this function
 
         if pos2 is not None:
-            if pos1 == pos2:
+            if pos1 == pos2:  # save some time with this return
                 return 0
 
         access = self.map_info[4]
@@ -310,7 +199,7 @@ class Engine:
             return -3
         return movecost
 
-    def action(self, pos, desired_pos, desired_action='wait', target_pos=None):
+    def action(self, pos, desired_pos, desired_action, target_pos=None):
         if pos == (-10, -10):
             raise CustomError("loaded units can't do anything")
         u1 = self.return_unit(pos)  # unit making the move
@@ -596,12 +485,7 @@ class Engine:
 
         self.update()  # after the move is done, update the board!
 
-
-    def build(self, pos=None, typ=None):
-        if pos is None:
-            pos = self.get_poses_from_UI(1)
-            typ = self.prodcombo.get()  # format is 'inf', 'bcopter', ...
-
+    def build(self, pos, typ):
         if self.turns % 2 == 0:
             army = self.p1['army']
             funds = self.p1['funds']
@@ -683,11 +567,8 @@ class Engine:
             self.p2['funds'] -= costs[typ]
 
         self.update()
-        self.replayfile.write(f"build {pos[1]} {pos[0]} {typ}")
 
-    def delete_coords(self, pos=None):
-        if pos is None:
-            pos = self.get_poses_from_UI(1)
+    def delete_coords(self, pos):
         u = self.return_unit(pos)
         if u is None:
             raise CustomError("no unit at that location")
@@ -702,9 +583,7 @@ class Engine:
         self.update()
         self.replayfile.write(f"delete {pos[1]} {pos[0]}")
 
-    def unload(self, pos=None, target_pos=None):
-        if pos is None:
-            pos, target_pos = self.get_poses_from_UI(2)
+    def unload(self, pos, target_pos):
         # todo this isn't finished. all it does is resupply the lander!
         #  the choice of unit to unload needs to be somewhere in UI, then that fed in here.
         #  the destination of the unloaded unit also needs to be in UI (target pos should b good)
@@ -747,7 +626,6 @@ class Engine:
             self.p2['units'].append(u)
 
         self.update()
-        self.replayfile.write(f"unload {pos[1]} {pos[0]} {target_pos[1]} {target_pos[0]}")
 
     def capture_success(self, position):
         armies = [
@@ -797,48 +675,28 @@ class Engine:
             self.p1income.set(self.p1['income'])
             self.p2income.set(self.p2['income'])
 
-    def p1COP(self):
-        if self.p1['name'] != 'von bolt':
-            # normal power penalty is it costing 20% extra is only on cartridge?
-            if self.p1['charge'] >= self.p1['COP'] * self.costs[self.p1['starcost']] * 9000 and self.p1['power'] == 0:
-                self.p1['charge'] -= self.p1['COP'] * self.costs[self.p1['starcost']] * 9000
-                self.p1, self.p2 = activate_or_deactivate_power(self.p1, self.p2, 1)
-                self.update()
-                self.replayfile.write(f"COP")
-            else:
-                print("not enough charge or power already activated!")
+    def cop(self):
+        if self.turns % 2 == 0:
+            self.p1, self.p2 = self.power(self.p1, self.p2, 1)
         else:
-            print("von bolt doesn't have a COP!")
+            self.p2, self.p1 = self.power(self.p2, self.p1, 1)
+        self.update()
+        self.replayfile.write(f"COP")
 
-    def p1SCOP(self):
-        if self.p1['charge'] >= self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000 and self.p1['power'] == 0:
-            self.p1['charge'] -= self.p1['SCOP'] * self.costs[self.p1['starcost']] * 9000
-            self.p1, self.p2 = activate_or_deactivate_power(self.p1, self.p2, 2)
-            self.update()
-            self.replayfile.write(f"SCOP")
+    def scop(self):
+        if self.turns % 2 == 0:
+            self.p1, self.p2 = self.power(self.p1, self.p2, 2)
         else:
-            print("not enough charge or power already activated!")
+            self.p2, self.p1 = self.power(self.p2, self.p1, 2)
+        self.update()
+        self.replayfile.write(f"SCOP")
 
-    def p2COP(self):
-        if self.p2['name'] != 'von bolt':
-            if self.p2['charge'] >= self.p2['COP'] * self.costs[self.p2['starcost']] * 9000 and self.p2['power'] == 0:
-                self.p2['charge'] -= self.p2['COP'] * self.costs[self.p2['starcost']] * 9000
-                self.p2, self.p1 = activate_or_deactivate_power(self.p2, self.p1, 1)
-                self.update()
-                self.replayfile.write(f"COP")
-            else:
-                print("not enough charge or power already activated!")
-        else:
-            print("von bolt doesn't have a COP!")
-
-    def p2SCOP(self):
-        if self.p2['charge'] >= self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000 and self.p2['power'] == 0:
-            self.p2['charge'] -= self.p2['SCOP'] * self.costs[self.p2['starcost']] * 9000
-            self.p2, self.p1 = activate_or_deactivate_power(self.p2, self.p1, 2)
-            self.update()
-            self.replayfile.write(f"SCOP")
-        else:
-            print("not enough charge or power already activated!")
+    def power(self, co1, co2, level):
+        if co1['power'] != 0:
+            raise CustomError ("power already activated!")
+        if level == 1 and co1['name'] == 'von bolt':
+            raise CustomError("von bolt doesn't have a COP!")
+        return activate_or_deactivate_power(co1, co2, level)
 
     def turn_end(self):
         if len(self.map_info[0]) == 0:
@@ -910,22 +768,3 @@ def calc(pos1, pos2, units1, units2):
     # print(u1)
     # print(u2)
     print(damage_calc_bounds(u1, u2))
-
-
-class FakeReplay:
-    def write(self, *args):
-        pass
-
-    def close(self):
-        pass
-
-
-class CustomError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        # if I want extra arguments, go to https://stackoverflow.com/a/1319675
-
-
-class WinError(Exception):
-    def __init__(self, message):
-        super().__init__(message)

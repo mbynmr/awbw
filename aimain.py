@@ -12,6 +12,9 @@ You can use a genetic algorithm on any system which can be randomly "mutated" in
 # That depends on the game but it's either faking keyboard inputs
 # or instead of processing input, you process the AI instead
 
+# options for the type of ai:
+# play against itself (advantage: can be better than humans, disadvantage: much harder)
+# learn from high level GL match replays (advantage: much easier, disadvantage: only beats good players on a good day)
 
 # reward:
 #  ++++winning in as few turns as possible
@@ -33,7 +36,6 @@ You can use a genetic algorithm on any system which can be randomly "mutated" in
 # play me!
 # profit??
 # play against sensei a lot bcus the "calcs" the ai has won't account for 9hp inf/mech spawns: spawns are always 10hp
-
 
 # total things to interract with:
 
@@ -58,6 +60,7 @@ You can use a genetic algorithm on any system which can be randomly "mutated" in
 
 # --outputs from engine--
 # self.win  (0 = ongoing, 1 = win, 2 = loss)
+# self.turns
 # self.p1 (contains updated units and stats and money and charge etc)
 # self.p2
 # self.map_info

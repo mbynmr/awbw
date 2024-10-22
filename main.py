@@ -1,9 +1,9 @@
 # from testing import unpack
-from engine import Engine
+from GUI import GUI
 
 
 def main():
-    Engine(True)
+    GUI()
 
 
 if __name__ == '__main__':
