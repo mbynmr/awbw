@@ -1,16 +1,19 @@
-import sys
+
 import platform
 import time
 import numpy as np
 import tkinter as tk
 from tkinter.ttk import Notebook as notebook
 from tkinter import filedialog, scrolledtext, CENTER
+import tkinter.font as tkFont
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg  # , NavigationToolbar2Tk
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
 from engine import Engine, calc, CustomError
 from unit import name_to_filename
+from co import co_maker
+from writer import Writer
 
 
 class GUI:
@@ -23,18 +26,31 @@ class GUI:
         self.w.geometry("1920x1030")  # this is the worst. i hate it.
         # self.w.resizable(False, False)
 
+        # font setup
+        default_font = tkFont.nametofont("TkDefaultFont")
+        # default_font.configure(family='Arial')  # todo ?? i can set size fine but not family?
+        default_font.configure(size=10)
+        self.w.option_add("*Font", default_font)
+
         # variable setup
         if platform.system() == 'Linux':
-            mp = r"\home\nathaniel\PycharmProjects\awbw\maps\Last Vigil.txt"
+            mp = r"/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.txt"
+            rp = r"/home/nathaniel/PycharmProjects/awbw/replays/yyyy_mm_dd_hh_mm_ss.txt"
         else:
-            mp = r"maps\Last Vigil.txt"
+            mp = r"maps/Last Vigil.txt"
+            rp = r"replays/yyyy_mm_dd_hh_mm_ss.txt"
             self.w.state('zoomed')
+        self.replayfile = None
         self.costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
+        self.i = 0
+        self.lines = []
+        # GUI variables
         self.prodcombo = tk.StringVar(self.w)
         self.turns_display = tk.IntVar(self.w, value=0)
-        self.days = tk.IntVar(self.w, value=int(0))
+        self.days = tk.IntVar(self.w, value=int(1))
         # co1
         self.p1name = tk.StringVar(self.w, value='co1 name')
+        self.p1army = tk.StringVar(self.w, value='co1 army')
         self.p1funds = tk.IntVar(self.w, value=0)
         self.p1unitc = tk.IntVar(self.w, value=0)
         self.p1unitv = tk.IntVar(self.w, value=0)
@@ -50,6 +66,7 @@ class GUI:
         self.p1detailrange = tk.StringVar(self.w, value='1-1')
         # co2
         self.p2name = tk.StringVar(self.w, value='co2 name')
+        self.p2army = tk.StringVar(self.w, value='co2 army')
         self.p2funds = tk.IntVar(self.w, value=0)
         self.p2unitc = tk.IntVar(self.w, value=0)
         self.p2unitv = tk.IntVar(self.w, value=0)
@@ -96,10 +113,10 @@ class GUI:
         details_nb.add(calc_nb, text='calcs')
         # game
         self.map_path = tk.StringVar(self.w, value=mp)
-        self.entry_path = tk.Entry(game_tab, textvariable=self.map_path, width=55)
+        self.replay_path = tk.StringVar(self.w, value=rp)
+        self.entry_map_path = tk.Entry(game_tab, textvariable=self.map_path, width=44)
+        self.entry_replay_path = tk.Entry(game_tab, textvariable=self.replay_path, width=44)
         self.game_widgets(game_tab)
-        # todo "(re/)start engine in live play mode" button
-        # todo "(re/)start engine in replay view mode" button
         # co tab
         self.scale_curx = tk.Scale(co_tab, from_=0, to=200, length=200, orient='horizontal')
         self.scale_cury = tk.Scale(co_tab, from_=0, to=200, length=100, orient='vertical')
@@ -131,10 +148,7 @@ class GUI:
 
         # wrapping up :D
         self.E = None
-        # self.E = Engine(self.map_path.get(), render=True)  # replay=None?
-        # todo need to be able to reset engine and open another anytime
 
-        self.update(False)  # don't load map & units in update bcus it isn't loaded yet.
         self.w.mainloop()
 
     def widgets(self):
@@ -148,10 +162,17 @@ class GUI:
 
     def game_widgets(self, parent):
         tk.Label(parent, text="Map path").place(relx=0.05, rely=0.01)
-        tk.Button(parent, text='Path', command=self.select_path).place(relx=0.9, rely=0.0365)
-        self.entry_path.place(relx=0.05, rely=0.04)
-        self.entry_path.xview_moveto(1)
-        tk.Button(parent, text='Load map', command=self.load_map).place(relx=0.05, rely=0.07)
+        tk.Button(parent, text='Path', command=self.select_map_path).place(relx=0.9, rely=0.0365)
+        self.entry_map_path.place(relx=0.05, rely=0.04)
+        self.entry_map_path.xview_moveto(1)
+        tk.Button(parent, text='Live play with this map', command=self.live_play).place(relx=0.05, rely=0.07)
+        tk.Label(parent, text="Replay path").place(relx=0.05, rely=0.41)
+        tk.Button(parent, text='Path', command=self.select_replay_path).place(relx=0.9, rely=0.4365)
+        self.entry_replay_path.place(relx=0.05, rely=0.44)
+        self.entry_replay_path.xview_moveto(1)
+        tk.Button(parent, text='Load replay', command=self.replay_view).place(relx=0.05, rely=0.47)
+        tk.Button(parent, text='Next move', command=self.replay_move).place(relx=0.35, rely=0.47)
+        tk.Button(parent, text='Next turn', command=self.replay_turn).place(relx=0.35, rely=0.50)
         tk.ttk.Separator(parent, orient='horizontal').place(relx=0, rely=0.11, relwidth=1, relheight=0.2)
         tk.Label(parent, text='Day: ', width=5, anchor="e").place(relx=0.15, rely=0.275)
         tk.Label(parent, textvariable=self.days, width=4, anchor="w").place(relx=0.3, rely=0.275)
@@ -163,21 +184,14 @@ class GUI:
         # CO controls go here (power buttons + bars + details ig)
         tk.ttk.Separator(parent, orient='vertical').place(relx=0.5, rely=0, relwidth=0.001, relheight=0.49)
 
-        armies = {
-            'neutral': 'n', 'amberblaze': 'ab', 'blackhole': 'bh', 'bluemoon': 'bm', 'browndesert': 'bd',
-            'greenearth': 'ge', 'jadesun': 'js', 'orangestar': 'os',
-            'redfire': 'rf', 'yellowcomet': 'yc', 'greysky': 'gs', 'cobaltice': 'ci', 'pinkcosmos': 'pc',
-            'tealgalaxy': 'tg', 'purplelightning': 'pl',
-            'acidrain': 'ar', 'whitenova': 'wn', 'azureasteroid': 'aa', 'noireclipse': 'ne'
-        }
-        tk.Label(parent, textvariable=self.p1name, anchor="w").place(relx=0.05, rely=0.02)
-        tk.Label(parent, text=armies[self.E.p1['army']], anchor="w").place(relx=0.05, rely=0.05)
-        tk.Label(parent, textvariable=self.p1funds, anchor="w").place(relx=0.05, rely=0.08)
+        tk.Label(parent, textvariable=self.p1name, width=7, anchor="w").place(relx=0.05, rely=0.02)
+        tk.Label(parent, textvariable=self.p1army, width=7, anchor="w").place(relx=0.05, rely=0.05)
+        tk.Label(parent, textvariable=self.p1funds, width=7, anchor="w").place(relx=0.05, rely=0.08)
         tk.Label(parent, textvariable=self.p1unitc, width=7, anchor="e").place(relx=0.30, rely=0.02)
         tk.Label(parent, textvariable=self.p1unitv, width=7, anchor="e").place(relx=0.30, rely=0.05)
         tk.Label(parent, textvariable=self.p1income, width=7, anchor="e").place(relx=0.30, rely=0.08)
-        tk.Label(parent, textvariable=self.p2name, width=6, anchor="w").place(relx=0.52, rely=0.02)
-        tk.Label(parent, text=armies[self.E.p2['army']], width=6, anchor="w").place(relx=0.52, rely=0.05)
+        tk.Label(parent, textvariable=self.p2name, width=7, anchor="w").place(relx=0.52, rely=0.02)
+        tk.Label(parent, textvariable=self.p2army, width=7, anchor="w").place(relx=0.52, rely=0.05)
         tk.Label(parent, textvariable=self.p2funds, width=7, anchor="w").place(relx=0.52, rely=0.08)
         tk.Label(parent, textvariable=self.p2unitc, width=7, anchor="e").place(relx=0.80, rely=0.02)
         tk.Label(parent, textvariable=self.p2unitv, width=7, anchor="e").place(relx=0.80, rely=0.05)
@@ -241,7 +255,7 @@ class GUI:
 
         # tk.ttk.Separator(parent, orient='vertical').place(relx=0.68, rely=0.49, relwidth=0.001, relheight=0.2)
         tk.ttk.Separator(parent, orient='horizontal').place(relx=0.68, rely=0.64, relwidth=0.32, relheight=0.001)
-        tk.Button(parent, text='Delete', command=self.delete_coords).place(relx=0.74, rely=0.52)  # todo buttons
+        tk.Button(parent, text='Delete', command=self.delete_coords).place(relx=0.74, rely=0.52)
         tk.Button(parent, text='Build', command=self.build).place(relx=0.74, rely=0.56)
         self.productioncb.place(relx=0.7, rely=0.6)
 
@@ -253,9 +267,13 @@ class GUI:
         # todo customise number of hits
         # todo probabilities :>
 
-    def select_path(self):
+    def select_map_path(self):
         self.map_path.set(filedialog.askdirectory())
-        self.entry_path.xview_moveto(1)
+        self.entry_map_path.xview_moveto(1)
+
+    def select_replay_path(self):
+        self.replay_path.set(filedialog.askopenfilename())
+        self.entry_replay_path.xview_moveto(1)
 
     def get_poses_from_UI(self, num):
         match num:
@@ -313,7 +331,11 @@ class GUI:
 
     def charge_update(self):
         self.p1charge.set(self.E.p1['charge'])
+        self.p1copcost.set(self.E.p1['COP'] * self.costs[self.E.p1['starcost']] * 9000)
+        self.p1scopcost.set(self.E.p1['SCOP'] * self.costs[self.E.p1['starcost']] * 9000)
         self.p2charge.set(self.E.p2['charge'])
+        self.p2copcost.set(self.E.p2['COP'] * self.costs[self.E.p2['starcost']] * 9000)
+        self.p2scopcost.set(self.E.p2['SCOP'] * self.costs[self.E.p2['starcost']] * 9000)
 
     def load_map(self):
         self.E.load_map(self.map_path.get())
@@ -331,8 +353,17 @@ class GUI:
         # self.map_bg = mpimg.imread('/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.png')
 
     def update(self, draw=None):
+        armies = {
+            'neutral': 'n', 'amberblaze': 'ab', 'blackhole': 'bh', 'bluemoon': 'bm', 'browndesert': 'bd',
+            'greenearth': 'ge', 'jadesun': 'js', 'orangestar': 'os',
+            'redfire': 'rf', 'yellowcomet': 'yc', 'greysky': 'gs', 'cobaltice': 'ci', 'pinkcosmos': 'pc',
+            'tealgalaxy': 'tg', 'purplelightning': 'pl',
+            'acidrain': 'ar', 'whitenova': 'wn', 'azureasteroid': 'aa', 'noireclipse': 'ne'
+        }
         self.p1name.set(self.E.p1['name'])
+        self.p1army.set(armies[self.E.p1['army']])
         self.p1funds.set(self.E.p1['funds'])
+        self.p1income.set(self.E.p1['income'])
         self.p1unitc.set(len(self.E.p1['units']))
         v = 0
         # if not sonja bcus she hides her total unit value!
@@ -342,7 +373,9 @@ class GUI:
         self.p1unitv.set(v)
 
         self.p2name.set(self.E.p2['name'])
+        self.p2army.set(armies[self.E.p2['army']])
         self.p2funds.set(self.E.p2['funds'])
+        self.p2income.set(self.E.p2['income'])
         self.p2unitc.set(len(self.E.p2['units']))
         v = 0
         for e in self.E.p2['units']:
@@ -350,17 +383,12 @@ class GUI:
             v += int(e['value'] * display_hp / 10)  # full value * visible hp / 10
         self.p2unitv.set(v)
 
-        # visual things below this point!
         self.charge_update()
-        self.p1copcost.set(self.E.p1['COP'] * self.costs[self.E.p1['starcost']] * 9000)
-        self.p1scopcost.set(self.E.p1['SCOP'] * self.costs[self.E.p1['starcost']] * 9000)
-        self.p2copcost.set(self.E.p2['COP'] * self.costs[self.E.p2['starcost']] * 9000)
-        self.p2scopcost.set(self.E.p2['SCOP'] * self.costs[self.E.p2['starcost']] * 9000)
         self.combobox_update()
 
-        # unit visual display
+        # unit display on axes
         if draw is None:
-            dims = self.map_info[0].shape
+            dims = self.E.map_info[0].shape
             r = 1 / dims[1]
             self.fig.clear()  # find a better way than this. deleting and remaking every time isn't the best
             self.fig.add_axes([0, 0, 1, 1]).imshow(self.map_bg)
@@ -425,125 +453,204 @@ class GUI:
     def build(self, pos=None, typ=None):
         if pos is None:
             pos = self.get_poses_from_UI(1)
-            typ = self.productioncb.get().split(' ')[1]  # todo check this gives unit typ '10 inf (2, 1) m:3'
+            typ = self.productioncb.get()
         try:
             self.E.build(pos, typ)
-            self.replayfile.write(f"build {pos[1]} {pos[0]} {typ}")
         except CustomError as Err:
             print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(f"build {pos[1]} {pos[0]} {typ}" + '\n')
 
     def fire(self, pos=None, desired_pos=None, target_pos=None):
         if pos is None:
             pos, desired_pos, target_pos = self.get_poses_from_UI(3)
         try:
             self.E.action(pos, desired_pos, desired_action='fire', target_pos=target_pos)
-            self.E.replayfile.write(
-                f"fire {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}")
         except CustomError as Err:
             print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(
+                    f"fire {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}" + '\n')
 
     def move(self, pos=None, desired_pos=None):
         if pos is None:
             pos, desired_pos = self.get_poses_from_UI(2)
         try:
             self.E.action(pos, desired_pos, desired_action='wait')
-            self.E.replayfile.write(f"wait {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]}")
         except CustomError as Err:
             print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(f"wait {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]}" + '\n')
 
     def hide(self, pos=None, desired_pos=None, target_pos=None):
         if pos is None:
             pos, desired_pos, target_pos = self.get_poses_from_UI(3)
         try:
             self.E.action(pos, desired_pos, desired_action='hide')
-            self.E.replayfile.write(
-                f"hide {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}")
         except CustomError as Err:
             print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(
+                    f"hide {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}" + '\n')
 
     def repair(self, pos=None, desired_pos=None, target_pos=None):
         if pos is None:
             pos, desired_pos, target_pos = self.get_poses_from_UI(3)
         try:
             self.E.action(pos, desired_pos, desired_action='repair', target_pos=target_pos)
-            self.E.replayfile.write(
-                f"repair {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}")
         except CustomError as Err:
             print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(
+                    f"repair {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}" + '\n')
 
     def unload(self, pos=None, target_pos=None):
         if pos is None:
             pos, target_pos = self.get_poses_from_UI(2)
         try:
             self.E.unload(pos, target_pos=target_pos)
-            self.replayfile.write(f"unload {pos[1]} {pos[0]} {target_pos[1]} {target_pos[0]}")
         except CustomError as Err:
             print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(f"unload {pos[1]} {pos[0]} {target_pos[1]} {target_pos[0]}" + '\n')
 
     def delete_coords(self, pos=None):
         if pos is None:
             pos = self.get_poses_from_UI(1)
         try:
             self.E.delete_coords(pos)
-            self.replayfile.write('delete')  # todo
-            # todo replay file write
+            if self.replayfile is not None:
+                self.replayfile.write(f"delete {pos[1]} {pos[0]}" + '\n')
         except CustomError as Err:
             print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(f"delete {pos[1]} {pos[0]}" + '\n')
 
     def cop(self):
-        self.E.cop()
+        try:
+            self.E.power(1)
+        except CustomError as Err:
+            print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(f"COP" + '\n')
 
     def scop(self):
-        self.E.scop()
+        try:
+            self.E.power(2)
+        except CustomError as Err:
+            print(Err)
+        else:
+            self.update()
+            if self.replayfile is not None:
+                self.replayfile.write(f"SCOP" + '\n')
 
     def turn_end(self):
         self.turns_display.set(self.E.turns + 1)
         self.days.set(int((self.E.turns + 1) / 2) + 1)
         self.E.turn_end()
+        self.update()
+        if self.replayfile is not None:
+            self.replayfile.write('turn' + '\n')
 
-    def replay(self):
-        # live play
+    def live_play(self):
+        # live play mode
+        self.E = Engine(self.map_path.get(), co_maker('jake', 'purplelightning'), co_maker('jess', 'yellowcomet'))
         self.replayfile = open('replays/' + '_'.join([str(e).zfill(2) for e in time.localtime()[0:6]]) + '.txt',
-                               'w')  # save replay file in this mode
-        self.replayfile.write(self.mp)  # todo map path
-        self.replayfile.write(str(self.E.p1))
-        self.replayfile.write(str(self.E.p2))
-        self.update(False)
+                                'w')  # save replay file in this mode
+        self.replayfile.write(self.map_path.get() + '\n')
+        self.replayfile.write(str(self.E.p1) + '\n')
+        self.replayfile.write(str(self.E.p2) + '\n')
+        self.load_map()
+        self.update()
 
-    def replay_load(self, replay):
+    def replay_view(self):
+        # replay viewer mode
+        if self.replayfile is not None:
+            self.replayfile.close()
+            self.replayfile = None
+        replay = self.replay_path.get()
+        self.lines = []
         with open(replay, 'r') as replayfile:
-            toplines = replayfile[0:3]  # top 3 lines are details
+            # toplines = replayfile[0:3]  # top 3 lines are details
             # line0: map
             # line1: co1
             # line2: co2
-            replayfile = replayfile[3:]
-            for line in replayfile:
-                if line != 'turn' and line != 'winner':
-                    line.split(' ')
-                    pos = (line[2], line[1])
-                    match line[0]:  # action
-                        case 'build':
-                            # unit_being_built = line[3]
-                            self.build(pos, line[3])
-                        case 'fire':
-                            # pos_destination = (line[4], line[3])
-                            # pos_target = (line[6], line[5])
-                            self.fire(pos, (line[4], line[3]), (line[6], line[5]))
-                        case 'wait':
-                            # pos_destination = (line[4], line[3])
-                            self.move(pos, (line[4], line[3]))
-                        case 'delete':
-                            self.delete_coords(pos)
-                        case 'unload':
-                            self.unload(pos, (line[4], line[3]))
-                elif line == 'turn':
-                    call_turn_end = 1  # todo
-                else:
-                    print(line)
-                    self.winner = 1  # todo make sure this is the last line in the file?
+
+            # play the game action by action (line by line)
+            self.i = 0
+            for i, line in enumerate(replayfile):
+                line = line.split('\n')[0]
+                if i > 2:
+                    self.lines.append(line)
+                elif i == 0:
+                    self.map_path.set(line)
+                elif i == 1:
+                    co1 = eval(line)
+                elif i == 2:
+                    co2 = eval(line)
+                    self.E = Engine(self.map_path.get(), co1, co2)
+                    self.load_map()
+
+        self.update()
+
+    def replay_move(self, turn=None):
+        self.i += 1
+        if self.i >= len(self.lines):
+            print("replay finished sry")
+            return False
+        line = self.lines[self.i]
+        if line != 'turn' and line != 'winner':
+            line = line.split(' ')
+            pos = (int(line[2]), int(line[1]))
+            match line[0]:  # action
+                case 'build':
+                    # unit_being_built = line[3]
+                    self.build(pos, line[3])
+                case 'fire':
+                    # pos_destination = (line[4], line[3])
+                    # pos_target = (line[6], line[5])
+                    self.fire(pos, (int(line[4]), int(line[3])), (int(line[6]), int(line[5])))
+                case 'wait':
+                    # pos_destination = (line[4], line[3])
+                    # print('move')  todo find out what it's doing since it won't display hehe
+                    self.move(pos, (int(line[4]), int(line[3])))
+                case 'delete':
+                    self.delete_coords(pos)
+                case 'unload':
+                    self.unload(pos, (int(line[4]), int(line[3])))
+                # todo continue cases. there's probably other actions? yea like turn end, cop, etc
+        elif line == 'turn':
+            self.turn_end()
+            if turn is not None:
+                return False
+        else:
+            print(line)
+            self.winner = 1  # todo make sure this is the last line in the file?
+
+    def replay_turn(self):
+        turn = True
+        while turn:
+            turn = self.replay_move(turn)
 
     def close(self):
-        self.E.close()
+        if self.replayfile is not None:
+            self.replayfile.close()
         self.Writer.close()
         plt.close("all")
         self.w.destroy()
@@ -556,33 +663,4 @@ def pos_from_combobox(combobox_option):
 
 def on_pick(event):
     print(f"({event.x}, {event.y}) {event.button}")
-
-
-class Writer:
-    def __init__(self, text_holder):
-        self.text_holder = text_holder
-        self.writestore = sys.stdout.write  # store it for use later when closing
-        sys.stdout.write = self.write  # redirect "print" to the GUI
-
-    def write(self, s):
-        # s.split("\n")
-        #  for loop over all those splits to make sure it is handled correctly?
-        if s == '\n' or s == '':
-            return
-        if s[0:1] == '\r':  # todo this currently deletes the last tqdm line if the next line begins with \r
-            s = s[1:]
-            last_line = self.text_holder.get("end-2c linestart", "end-2c lineend")
-            if len(last_line) >= 7:
-                if not (last_line[0] == "[" and last_line[3] == ":" and last_line[6] == "]"):
-                    self.text_holder.delete('end-2l', 'end-1l')  # replace previous line if it was tqdm
-            self.text_holder.insert(tk.END, s + '\n')
-        else:
-            if s[0:1] == '\n':
-                s = s[1:]
-            self.text_holder.insert(tk.END,
-                                    '[' + ':'.join([str(e).zfill(2) for e in time.localtime()[3:5]]) + ']' + s + '\n')
-        self.text_holder.see(tk.END)
-
-    def close(self):
-        sys.stdout.write = self.writestore
 

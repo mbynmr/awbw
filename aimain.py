@@ -15,6 +15,8 @@ You can use a genetic algorithm on any system which can be randomly "mutated" in
 # options for the type of ai:
 # play against itself (advantage: can be better than humans, disadvantage: much harder)
 # learn from high level GL match replays (advantage: much easier, disadvantage: only beats good players on a good day)
+# why is playing itself hard? I don't think it is. get one version to play 1000 games and train itself on win/loss
+# then use better trained version to do the same again?
 
 # reward:
 #  ++++winning in as few turns as possible

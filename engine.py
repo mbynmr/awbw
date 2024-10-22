@@ -1,7 +1,7 @@
 import time
 import numpy as np
 
-from co import co_maker, activate_or_deactivate_power, turn_resupplies
+from co import activate_or_deactivate_power, turn_resupplies
 from unit import unit_maker
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
@@ -32,18 +32,18 @@ class Engine:
     big main class for game
     """
 
-    def __init__(self, map_path, render=False):
-        self.render = render  # True means visually playing the game, False is speedily playing and writing to file
+    def __init__(self, map_path, co1, co2):
 
         self.winner = 0
         self.turns = -1
         self.map_info = ([], [], [], [], [], [])  # ownedby, stars, repair, production, access, special
         self.von_bolt_missile = [-20, (-20, -20)]  # [turn popped, (position popped)]
         self.mp = map_path
+        self.income = 1000  # hf is 2000
 
-        # co
-        self.p1 = co_maker('jake', 'purplelightning')
-        self.p2 = co_maker('jess', 'yellowcomet')
+        # co  # todo this will be taken from GUI next
+        self.p1 = co1
+        self.p2 = co2
 
     def update(self, draw=None):
         if self.winner != 0:
@@ -78,8 +78,6 @@ class Engine:
         self.p2['units'] = []
 
         # load units from file
-        # /home/nathaniel/PycharmProjects/awbw/maps/Last Vigil units.txt
-
         path = map_path.split('.txt')[0] + ' units.txt'
 
         with open(path) as file:
@@ -120,6 +118,7 @@ class Engine:
             self.p2['units'].remove(u)
         else:
             raise CustomError("oh no big bad, crash crash crash")
+        self.update()
 
     def check_movement(self, u, pos1, pos2=None):
         # returns: movecost (0-11 (fighter with +2 move) is possible, -1 is impossible)
@@ -215,6 +214,7 @@ class Engine:
                 COP = self.p1['power'] == 1
                 eSCOP = self.p2['power'] == 2
                 eCOP = self.p2['power'] == 1
+                esasha = self.p2['name'] == 'sasha'  # other player sasha
                 javier = self.p2['name'] == 'javier'  # other player javier
                 sonja = self.p2['name'] == 'sonja'  # other player sonja
                 kanbei = self.p2['name'] == 'kanbei'  # other player kanbei
@@ -228,6 +228,7 @@ class Engine:
                 COP = self.p2['power'] == 1
                 eSCOP = self.p1['power'] == 2
                 eCOP = self.p1['power'] == 1
+                esasha = self.p1['name'] == 'sasha'  # other player sasha
                 javier = self.p1['name'] == 'javier'  # other player javier
                 sonja = self.p1['name'] == 'sonja'  # other player sonja
                 kanbei = self.p1['name'] == 'kanbei'  # other player kanbei
@@ -309,9 +310,11 @@ class Engine:
                             u3['hp'] = 99  # cap it
                             if display_hp1 + display_hp3 > 10:  # if the display hps add to more than 10, get funds.
                                 if self.turns % 2 == 0:
-                                    self.p1['funds'] += u3['value'] * (display_hp1 + display_hp3 - 10) / 10
+                                    self.p1['funds'] = int(
+                                        self.p1['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
                                 else:
-                                    self.p2['funds'] += u3['value'] * (display_hp1 + display_hp3 - 10) / 10
+                                    self.p2['funds'] = int(
+                                        self.p2['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
                         elif int(1 + (u3['hp']) / 10) < display_hp1 + display_hp3:  # if display hps didn't add
                             u3['hp'] = (display_hp1 + display_hp3 - 1) * 10  # bump it up a bit to add display hps
                         max_ammo = types[u3['type']][0]
@@ -367,7 +370,8 @@ class Engine:
                         'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
                     ][self.map_info[0][desired_pos]] and self.map_info[5][desired_pos] == 5:
                         # if tile is not owned by friendly, terrain is urban
-                        u1['capture'] += int(int(1 + u1['hp'] / 10) * 1.5 if sami else 1)
+                        u1['capture'] += int(int(1 + u1['hp'] / 10) * 15 if sami else 10)
+                        # im so confused why is this 10x or 15x for sami??? hp is already out of 10 why not 1x and 1.5x?
                         if u1['capture'] >= 20 or (sami and SCOP):  # capture happened!
                             u1['capture'] = 20
                             self.capture_success(desired_pos)
@@ -435,15 +439,17 @@ class Engine:
                 if u1['type'] == 'bboat':
                     if self.turns % 2 == 0 and self.p1['funds'] >= u2['value'] / 10:
                         u2['hp'] += 10
-                    elif self.turns % 2 == 1 and self.p1['funds'] >= u2['value'] / 10:
+                    elif self.turns % 2 == 1 and self.p2['funds'] >= u2['value'] / 10:
                         u2['hp'] += 10
                     if u2['hp'] >= 90:  # is this how it works? not sure rly.
                         # case where co has no funds but repairs a 90 (10hp display) unit, does it still go to 99?
                         u2['hp'] = 99
                     if self.turns % 2 == 0:
-                        self.p1['funds'] -= u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10
+                        self.p1['funds'] = int(
+                            self.p1['funds'] - int(u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10))
                     else:
-                        self.p2['funds'] -= u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10
+                        self.p2['funds'] = int(
+                            self.p2['funds'] -  int(u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10))
 
             case 'hide':
                 u1['hidden'] = not u1['hidden']  # wow this one is nice and simple :>
@@ -469,13 +475,17 @@ class Engine:
             if self.turns % 2 == 0:  # even turn means p1 turn
                 self.p1['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
                 self.p2['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
-                if sasha and SCOP:
-                    self.p1['funds'] += int(0.5 * u2_dmg_value)
+                if sasha and SCOP:  # this player sasha SCOP funds
+                    self.p1['funds'] = int(self.p1['funds'] + int(0.5 * u2_dmg_value))
+                elif esasha and eSCOP:  # enemy player sasha SCOP funds
+                    self.p2['funds'] = int(self.p2['funds'] + int(0.5 * u1_dmg_value))
             else:
                 self.p2['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
                 self.p1['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
                 if sasha and SCOP:
-                    self.p2['funds'] += int(0.5 * u2_dmg_value)
+                    self.p2['funds'] = int(self.p2['funds'] + int(0.5 * u2_dmg_value))
+                elif esasha and eSCOP:
+                    self.p1['funds'] = int(self.p1['funds'] + int(0.5 * u1_dmg_value))
 
         # manage units that need deleting
         for u in [u1, u2, u3]:
@@ -517,7 +527,7 @@ class Engine:
                     typfail = False
             case 0:  # 0 = none, any building that isn't production
                 if not sea and not air and hachiSCOP and self.map_info[1][pos] == 3 and self.map_info[2][pos] == 1:
-                    typfail = False
+                    typfail = False  # hachi SCOP: ground unit on city [can repair, not build, 3 stars]
                 else:
                     raise CustomError("no production at that location")
         if typfail:
@@ -561,12 +571,10 @@ class Engine:
         # build the unit with 0 move so it can't instantly move this turn.
         if army == self.p1['army']:
             self.p1['units'].append(unit_maker(army, typ, self.p1, pos, move=0))
-            self.p1['funds'] -= costs[typ]
+            self.p1['funds'] = int(self.p1['funds'] - int(costs[typ]))
         elif army == self.p2['army']:
             self.p2['units'].append(unit_maker(army, typ, self.p2, pos, move=0))
-            self.p2['funds'] -= costs[typ]
-
-        self.update()
+            self.p2['funds'] = int(self.p2['funds'] - int(costs[typ]))
 
     def delete_coords(self, pos):
         u = self.return_unit(pos)
@@ -581,7 +589,6 @@ class Engine:
         else:
             raise CustomError("can't delete: that unit isn't owned by the player who's turn it is!")
         self.update()
-        self.replayfile.write(f"delete {pos[1]} {pos[0]}")
 
     def unload(self, pos, target_pos):
         # todo this isn't finished. all it does is resupply the lander!
@@ -625,8 +632,6 @@ class Engine:
         else:
             self.p2['units'].append(u)
 
-        self.update()
-
     def capture_success(self, position):
         armies = [
             'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
@@ -655,64 +660,51 @@ class Engine:
         self.income_update()
 
     def income_update(self):
-        self.p1['income'] = 0
-        self.p2['income'] = 0
         armies = [
             'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun', 'orangestar',
             'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy', 'purplelightning',
             'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
         ]
+        sasha1 = 0 if self.p1['name'] != 'sasha' else 100
+        sasha2 = 0 if self.p2['name'] != 'sasha' else 100
+        p1army = armies.index(self.p1['army'])
+        p2army = armies.index(self.p2['army'])
+        p1in = 0
+        p2in = 0
         for e in np.argwhere(self.map_info[0] != 0):
+            # todo change to just [e] instead of [e[0], e[1]]
             if self.map_info[2][e[0], e[1]] != 0:  # if it can repair it provides income :>
-                if armies[self.map_info[0][e[0], e[1]]] == self.p1['army']:
-                    self.p1['income'] += 1000 + (0 if self.p1['name'] != 'sasha' else 100)
-                elif armies[self.map_info[0][e[0], e[1]]] == self.p2['army']:
-                    self.p2['income'] += 1000 + (0 if self.p2['name'] != 'sasha' else 100)
+                if self.map_info[0][e[0], e[1]] == p1army:
+                    p1in += self.income + sasha1
+                elif self.map_info[0][e[0], e[1]] == p2army:
+                    p2in += self.income + sasha2
                 else:
                     raise CustomError("Somehow a property is not neutral and not either army. huh")
-
-        if self.render:
-            self.p1income.set(self.p1['income'])
-            self.p2income.set(self.p2['income'])
-
-    def cop(self):
-        if self.turns % 2 == 0:
-            self.p1, self.p2 = self.power(self.p1, self.p2, 1)
-        else:
-            self.p2, self.p1 = self.power(self.p2, self.p1, 1)
+        self.p1['income'] = p1in
+        self.p2['income'] = p2in
         self.update()
-        self.replayfile.write(f"COP")
 
-    def scop(self):
+    def power(self, level):
         if self.turns % 2 == 0:
-            self.p1, self.p2 = self.power(self.p1, self.p2, 2)
+            self.p1, self.p2 = power(self.p1, self.p2, level)
         else:
-            self.p2, self.p1 = self.power(self.p2, self.p1, 2)
-        self.update()
-        self.replayfile.write(f"SCOP")
-
-    def power(self, co1, co2, level):
-        if co1['power'] != 0:
-            raise CustomError ("power already activated!")
-        if level == 1 and co1['name'] == 'von bolt':
-            raise CustomError("von bolt doesn't have a COP!")
-        return activate_or_deactivate_power(co1, co2, level)
+            self.p2, self.p1 = power(self.p2, self.p1, level)
 
     def turn_end(self):
         if len(self.map_info[0]) == 0:
             print("load a map before ending turn please")
-            return
+            return  # todo should be a raise?
+
         self.turns += 1
-
-        if self.turns % 2 == 1:  # going to p2 from p1
-            self.p1, self.p2 = self.turn_swap(self.p1, self.p2)
-        else:  # going to p1 from p2
-            self.p2, self.p1 = self.turn_swap(self.p2, self.p1)
-
+        self.turn_swap()
         self.update()
-        self.replayfile.write('turn')
 
-    def turn_swap(self, p1, p2):  # p1 -> p2 turn end/start
+    def turn_swap(self):  # p1 -> p2 turn end/start
+        if self.turns % 2 == 1:  # going to p2 from p1
+            p1, p2 = self.p1, self.p2
+        else:  # going to p1 from p2
+            p1, p2 = self.p2, self.p1
+
         # check win conditions (day limit ig?)
         p1win = False
         if p1['properties'] > 23:
@@ -726,7 +718,7 @@ class Engine:
             self.winner = p1['army']  # todo number for winner
 
         p2, p1 = activate_or_deactivate_power(p2, p1, -p2['power'])  # p2's power gets deactivated if it was on
-        p2['funds'] += p2['income']  # income before property repairs
+        p2['funds'] = int(p2['funds'] + int(p2['income']))  # income before property repairs
         p2 = turn_resupplies(p2, self.map_info)
 
         if p1['name'] == 'von bolt':  # check for von bolt power after giving units move so you can take it away
@@ -751,10 +743,14 @@ class Engine:
             # only remove it if the other player hasn't made it also happen before they ended turn!!!!!
 
         self.income_update()
-        return p1, p2
 
-    def close(self):
-        self.replayfile.close()
+
+def power(co1, co2, level):
+    if co1['power'] != 0:
+        raise CustomError ("power already activated!")
+    if level == 1 and co1['name'] == 'von bolt':
+        raise CustomError("von bolt doesn't have a COP!")
+    return activate_or_deactivate_power(co1, co2, level)
 
 
 def calc(pos1, pos2, units1, units2):

@@ -16,8 +16,8 @@ def co_maker(name='jake', army='neutral'):
     }
     power_cost = co_list[name]
     return {
-        'name': name, 'army': army, 'com': 0, 'properties': 0, 'income': 0, 'funds': 0,
-        'power': 0, 'charge': 0, 'COP': power_cost[0], 'SCOP': power_cost[1], 'starcost': 0, 'units': []
+        'name': name, 'army': army, 'com': int(0), 'properties': int(0), 'income': int(0), 'funds': int(0),
+        'power': int(0), 'charge': int(0), 'COP': power_cost[0], 'SCOP': power_cost[1], 'starcost': int(0), 'units': []
     }  # power: 0=CO, 1=COP, 2=SCOP
 
 
@@ -171,80 +171,6 @@ def missile(pos, units, hp=3):
     return units
 
 
-def turn_repairs(co, map_info):
-    types = {
-        'aa': [9, 60],
-        'apc': [0, 60],
-        'arty': [9, 50],
-        'bcopter': [6, 99],
-        'bship': [9, 99],
-        'bboat': [-1, 50],
-        'bbomb': [0, 45],
-        'bomber': [9, 99],
-        'carrier': [9, 99],
-        'cruiser': [9, 99],
-        'fighter': [9, 99],
-        'inf': [-1, 99],
-        'lander': [0, 99],
-        'med': [8, 50],
-        'mech': [3, 70],
-        'mega': [3, 50],
-        'missile': [6, 50],
-        'neo': [9, 99],
-        'pipe': [9, 99],
-        'recon': [-1, 80],
-        'rocket': [6, 50],
-        'stealth': [6, 60],
-        'sub': [6, 60],
-        'tcopter': [0, 99],
-        'tank': [9, 70]
-    }  # ammo, fuel
-    coarmy = [
-        'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun', 'orangestar',
-        'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy', 'purplelightning',
-        'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
-    ].index(co['army'])
-    air = ['tcopter', 'bcopter', 'bbomb', 'bomber', 'fighter', 'stealth', 'tcopter']
-    sea = ['bboat', 'lander', 'bship', 'bboat', 'carrier', 'cruiser', 'lander', 'sub']
-
-    positions = []
-    for u in co['units']:
-        # goes top left, across to right, then down 1 layer left to right. this works!
-        positions.append(u['position'][1] + u['position'][0] * map_info[0].shape[1])
-    indexes = sorted(range(len(positions)), key=lambda k: positions[k])
-    # https://stackoverflow.com/a/7851166
-    for i in indexes:
-        u = co['units'][i]
-
-        repair = False
-        if u['position'] != (-10, -10):  # loaded units break this so make sure we don't include them
-            if coarmy == map_info[0][u['position']]:  # if this tile is owned by this co
-                # map_info[2] (repair) - 0: none, 1: ground, 2: sea, 3: air
-                match map_info[2][u['position']]:
-                    case 1:
-                        if u['type'] not in air and u['type'] not in sea:
-                            repair = True
-                    case 2:
-                        if u['type'] in sea:
-                            repair = True
-                    case 3:
-                        if u['type'] in air:
-                            repair = True
-
-        if repair:
-            display_hp = int(1 + u['hp'] / 10)
-            repair_value = 20 if co['name'] != 'rachel' else 30
-            if co['funds'] >= u['value'] * repair_value / 100:
-                u['hp'] += repair_value
-            if u['hp'] >= 90:
-                u['hp'] = 99
-            u['ammo'] = types[u['type']][0]
-            u['fuel'] = types[u['type']][1]
-            co['funds'] -= u['value'] * (int(1 + u['hp'] / 10) - display_hp) / 10
-
-    return co
-
-
 def turn_resupplies(co, map_info):
     # does property resupply & repair
     # does apc + bboat resupply
@@ -322,7 +248,7 @@ def turn_resupplies(co, map_info):
                 u['hp'] = 99  # and it gets capped to 99
             u['ammo'] = types[utype][1]
             u['fuel'] = types[utype][2]
-            co['funds'] -= u['value'] * (int(1 + u['hp'] / 10) - display_hp) / 10
+            co['funds'] = int(co['funds'] - u['value'] * (int(1 + u['hp'] / 10) - display_hp) / 10)
 
         if utype in ['apc', 'bboat']:  # find every apc and black boat
             x = u['position'][1]
@@ -334,6 +260,7 @@ def turn_resupplies(co, map_info):
                         if target['position'] == test_pos:  # search for a unit in that position
                             target['ammo'] = types[target['type']][1]
                             target['fuel'] = types[target['type']][2]
+
     return co
 
 # thing = {'0': -0, '1': -1, '2': -2, '3': -3, '4': -4}
