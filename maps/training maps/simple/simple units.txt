@@ -1,0 +1,2 @@
+purplelightning, inf, 2, 1
+yellowcomet, rocket, 3, 3
