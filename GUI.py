@@ -86,6 +86,7 @@ class GUI:
         self.my_dpi = 102
         # self.figdims = [662, 515]  # *2 works for this map ig [1324, 1030] with max of roughly [1500, 1000]
         self.figdims = [662 * 2, 515 * 2]
+        self.figdims = [143 * 4, 155 * 4]
         self.fig, self.ax = plt.subplots(figsize=(self.figdims[0] / self.my_dpi, self.figdims[1] / self.my_dpi),
                                          dpi=self.my_dpi)
         self.ax_display_move = []
@@ -622,7 +623,7 @@ class GUI:
             return False
         line = self.lines[self.i]
         self.i += 1
-        if line != 'turn' and line != 'winner':
+        if line != 'turn' and line != 'winner' and line != 'turn_end':
             line = line.split(' ')
             pos = (int(line[2]), int(line[1]))
             match line[0]:  # action
@@ -643,7 +644,7 @@ class GUI:
                     choice = 1  # choice can be 1 or 2
                     self.unload(pos, (int(line[4]), int(line[3])), choice)  # todo choice
                 # todo continue cases. there's probably other actions? yea like turn end, cop, etc
-        elif line == 'turn':
+        elif line == 'turn_end':
             self.turn_end()
             if turn is not None:
                 return False

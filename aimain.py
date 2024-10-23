@@ -83,6 +83,7 @@ You can use a genetic algorithm on any system which can be randomly "mutated" in
 import platform
 import time
 import numpy as np
+from tqdm import tqdm
 
 from customclasses import WinError, CustomError
 from engine import Engine
@@ -91,22 +92,30 @@ from co import co_maker
 
 def test():
     if platform.system() == 'Linux':
-        mp = r"/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.txt"
+        mp = r"/home/nathaniel/PycharmProjects/awbw/maps/"
     else:
-        mp = r"maps/Last Vigil.txt"
-    E = Engine(mp, co_maker('jake', 'purplelightning'), co_maker('jess', 'yellowcomet'), np.random.randint(1e9))
+        mp = r"maps/"
+    # mp = mp + "Last Vigil.txt"
+    mp = mp + "training maps/simple/simple.txt"
+    rng = np.random.randint(1e9)
+    E = Engine(mp, co_maker('jake', 'purplelightning'), co_maker('jess', 'yellowcomet'), rng)
+    E.load_map()
 
     P1 = Player()  # make 2 players to take each turn
     P2 = Player()
 
-    with open('replays/' + '_'.join([str(e).zfill(2) for e in time.localtime()[0:6]]) + '.txt', 'w') as replayfile:
+    with open('replays/ai/' + '_'.join([str(e).zfill(2) for e in time.localtime()[0:6]]) + '.txt', 'w') as replayfile:
         # save replay file
+        replayfile.write(mp + '\n')
+        replayfile.write(str(E.p1) + '\n')
+        replayfile.write(str(E.p2) + '\n')
+        replayfile.write(str(rng) + '\n')
 
         win = 0
         turn = 0
         move1 = 0
         move2 = 0
-        while win == 0:
+        for _ in tqdm(range(int(1e5))):  # 1e5 moves should be enough to finish a game! xD
             if turn % 2 == 0:
                 action, pos1, pos2, pos3, unit = P1.ask_brain(E.p1, E.p2, E.map_info)
                 move1 += 1
@@ -116,13 +125,13 @@ def test():
 
             try:
                 match action:
+                    case 'turn_end':
+                        E.turn_end()
+                        turn += 1
                     case 'cop':
                         E.power(1)
                     case 'scop':
                         E.power(2)
-                    case 'turn_end':
-                        E.turn_end()
-                        turn += 1
                     case 'unload':
                         E.unload(pos1, pos2, pos3[0])  # choice of unit to unload, hard,
                     case 'move':
@@ -137,25 +146,36 @@ def test():
                         E.delete_coords(pos1)
                     case 'build':
                         E.build(pos1, unit)
-            except CustomError as Err:
-                # print(Err)
-                x = 1  # the punishment is just number of turns right? seems gd
+            except CustomError:
+                pass  # could add move to make moves that are invalid cost more overall moves than normal moves.
             else:  # if the action goes through alright (no CustomError)
                 if action == 'build':
-                    replayfile.write(f"{action} {pos1[1]} {pos1[0]} {unit}" + '\n')
+                    replayfile.write(f"build {pos1[1]} {pos1[0]} {unit}" + '\n')
+                elif action == 'turn_end':
+                    replayfile.write('turn_end' + '\n')
                 else:
                     replayfile.write(f"{action} {pos1[1]} {pos1[0]} {pos2[1]} {pos2[0]} {pos3[1]} {pos3[0]}" + '\n')
             finally:
                 win = E.winner
-        print(f"omg a win??? army {win} wins")
+                if win != 0:
+                    print(f"omg a win??? army {win} wins")
+                    break
 
 
 class Player:
     def __init__(self):
         self.win = 0  # 0 = ongoing, 1 = win, 2 = loss
-        self.genomeInputs = 4
-        self.genomeOutputs = 1
-        self.brain = Genome(self.genomeInputs, self.genomeOutputs)
+        # self.actions = {'cop':0.01, 'scop':0.02, 'unload':0.05, 'move':0.25, 'hide':0.45, 'fire':0.65, 'repair':0.68, 'delete_coords':0.69, 'build':0.995, 'turn_end':1}
+        self.actions = ['cop', 'scop', 'unload', 'move', 'hide', 'fire', 'repair', 'delete_coords', 'build', 'turn_end']
+        self.action_intervals = [0.01, 0.02, 0.05, 0.25, 0.45, 0.65, 0.68, 0.69, 0.995, 1]
+        self.units = [
+            'inf', 'mech', 'tank', 'arty', 'apc', 'aa', 'med', 'neo', 'mega', 'rocket', 'recon', 'missile', 'pipe',
+            'bboat', 'lander', 'carrier', 'cruiser', 'sub', 'bship',
+            'bcopter','tcopter', 'bomber', 'fighter', 'stealth', 'bbomb'
+        ]  # units sorted by movement type
+        # self.genomeInputs = 4
+        # self.genomeOutputs = 1
+        # self.brain = Genome(self.genomeInputs, self.genomeOutputs)
 
     def ask_brain(self, p1, p2, map_info):
         # self.turns
@@ -167,10 +187,24 @@ class Player:
         coords2 = (np.random.random(), np.random.random())
         coords3 = (np.random.random(), np.random.random())
         unit = np.random.random()
-        # brain always returns action and 3 coords and unit
+        # brain always makes action and 3 coords and unit (8 numbers in the interval 0-1, not inclusive of 1 itself)
+        return self.convert_brain_return(action, coords1, coords2, coords3, unit, map_info[0].shape)
+
+    def convert_brain_return(self, action, coords1, coords2, coords3, unit, shape):
+        for i in range(len(self.action_intervals)):
+            if self.action_intervals[i] >= action:
+                action = self.actions[i]
+                break
+        # if type(action) is not str:
+        #     raise ValueError("action didn't get chosen somehow")
+        unit = self.units[int(unit * len(self.units))]  # equally weighted. let the ai figure this out itself :>
+        coords1 = (int(coords1[0] * shape[0]), int(coords1[1] * shape[0]))
+        coords2 = (int(coords2[0] * shape[0]), int(coords2[1] * shape[0]))
+        coords3 = (int(coords3[0] * shape[0]), int(coords3[1] * shape[0]))
         return action, coords1, coords2, coords3, unit
 
 
 class Genome:
     def __init__(self, a, b):
         x = 1
+        # save genome details to "ai stuff" folder

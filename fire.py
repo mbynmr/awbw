@@ -56,7 +56,7 @@ def compatible(u1, u2):
         elif u2['type'] == 'stealth':
             if u1['type'] != 'fighter' and u1['type'] != 'stealth':  # fighters or other stealths
                 return False
-    if base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '') != 0 and u1['ammo'] != 0:
+    if base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '') != 0 and u1['ammo'] >= 0:
         return True
     elif u1['ammo'] != 0:
         if base_damage(u1['type'], u2['type'], 'AMMO') != 0:
@@ -108,4 +108,7 @@ def base_damage(type1, type2, ammo=''):  # default ammo is ok. if 'AMMO' is pass
         [17, 65, 65, 22, 0, 0, 0, 0, 0, 0, 0, 125, 0, 1, 115, 1, 55, 1, 10, 65, 75, 0, 0, 55, 10],  # neo
         [5, 54, 45, 10, 0, 0, 0, 0, 0, 0, 0, 75, 0, 1, 70, 1, 30, 1, 6, 40, 55, 0, 0, 40, 6]  # tank
     ]
-    return table[types.index(type1 + ammo)][types.index(type2)]
+    try:
+        return table[types.index(type1 + ammo)][types.index(type2)]
+    except ValueError:
+        return 0  # anything not in the list gets 0

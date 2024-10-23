@@ -8,8 +8,3 @@ purplelightning, arty, 17, 3
 purplelightning, aa, 2, 6
 purplelightning, aa, 2, 5
 yellowcomet, rocket, 2, 13
-yellowcomet, rocket, 2, 8
-yellowcomet, med, 5, 10
-yellowcomet, inf, 15, 12
-yellowcomet, inf, 13, 12
-yellowcomet, rocket, 17, 13

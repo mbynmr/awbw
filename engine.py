@@ -48,11 +48,12 @@ class Engine:
         self.p2 = co2
 
     def update(self, draw=None):
-        if self.winner != 0:
-            if self.turns % 2 == 0:
-                raise WinError(f"winner!!!! p1 in {self.turns} turns")
-            else:
-                raise WinError(f"winner!!!! p2 in {self.turns} turns")
+        return
+        # if self.winner != 0:
+        #     if self.turns % 2 == 0:
+        #         raise WinError(f"winner!!!! p1 in {self.turns} turns")
+        #     else:
+        #         raise WinError(f"winner!!!! p2 in {self.turns} turns")
 
     def load_map(self, path=None):
         if path is None:
@@ -458,7 +459,10 @@ class Engine:
                             self.p2['funds'] -  int(u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10))
 
             case 'hide':
-                u1['hidden'] = not u1['hidden']  # wow this one is nice and simple :>
+                if u1['type'] in ['stealth', 'sub']:
+                    u1['hidden'] = not u1['hidden']  # wow this one is nice and simple :>
+                else:
+                    raise CustomError("unit can't hide")
                 # if i do fog then forests mess with this. be careful! (and i guess normal fog too)
 
         # all actions if successful move and set fuel
@@ -599,6 +603,8 @@ class Engine:
     def unload(self, pos, target_pos, choice):
 
         u = self.return_unit(pos)
+        if u is None:
+            raise CustomError(f"no unit at coords {pos}")
         if self.turns % 2 == 0:
             army = self.p1['army']
         else:
