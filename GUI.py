@@ -41,6 +41,7 @@ class GUI:
             rp = r"replays/yyyy_mm_dd_hh_mm_ss.txt"
             self.w.state('zoomed')
         self.replayfile = None
+        self.draw = None
         self.costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
         self.i = 0
         self.lines = []
@@ -352,7 +353,7 @@ class GUI:
         self.map_bg = mpimg.imread(self.map_path.get().split('.txt')[0] + '.png')
         # self.map_bg = mpimg.imread('/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.png')
 
-    def update(self, draw=None):
+    def update(self):
         armies = {
             'neutral': 'n', 'amberblaze': 'ab', 'blackhole': 'bh', 'bluemoon': 'bm', 'browndesert': 'bd',
             'greenearth': 'ge', 'jadesun': 'js', 'orangestar': 'os',
@@ -387,7 +388,7 @@ class GUI:
         self.combobox_update()
 
         # unit display on axes
-        if draw is None:
+        if self.draw is None:
             dims = self.E.map_info[0].shape
             r = 1 / dims[1]
             self.fig.clear()  # find a better way than this. deleting and remaking every time isn't the best
@@ -514,11 +515,11 @@ class GUI:
                 self.replayfile.write(
                     f"repair {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}" + '\n')
 
-    def unload(self, pos=None, target_pos=None):
+    def unload(self, pos=None, target_pos=None, choice=1):
         if pos is None:
             pos, target_pos = self.get_poses_from_UI(2)
         try:
-            self.E.unload(pos, target_pos=target_pos)
+            self.E.unload(pos, target_pos=target_pos, choice=choice)
         except CustomError as Err:
             print(Err)
         else:
@@ -570,12 +571,14 @@ class GUI:
 
     def live_play(self):
         # live play mode
-        self.E = Engine(self.map_path.get(), co_maker('jake', 'purplelightning'), co_maker('jess', 'yellowcomet'))
+        rng = np.random.randint(1e9)
+        self.E = Engine(self.map_path.get(), co_maker('jake', 'purplelightning'), co_maker('jess', 'yellowcomet'), rng)
         self.replayfile = open('replays/' + '_'.join([str(e).zfill(2) for e in time.localtime()[0:6]]) + '.txt',
                                 'w')  # save replay file in this mode
         self.replayfile.write(self.map_path.get() + '\n')
         self.replayfile.write(str(self.E.p1) + '\n')
         self.replayfile.write(str(self.E.p2) + '\n')
+        self.replayfile.write(str(rng) + '\n')
         self.load_map()
         self.update()
 
@@ -596,7 +599,9 @@ class GUI:
             self.i = 0
             for i, line in enumerate(replayfile):
                 line = line.split('\n')[0]
-                if i > 2:
+                # print(i)
+                # print(line)
+                if i > 3:
                     self.lines.append(line)
                 elif i == 0:
                     self.map_path.set(line)
@@ -604,17 +609,19 @@ class GUI:
                     co1 = eval(line)
                 elif i == 2:
                     co2 = eval(line)
-                    self.E = Engine(self.map_path.get(), co1, co2)
+                elif i == 3:
+                    rng = int(line)
+                    self.E = Engine(self.map_path.get(), co1, co2, rng)
                     self.load_map()
 
         self.update()
 
     def replay_move(self, turn=None):
-        self.i += 1
         if self.i >= len(self.lines):
             print("replay finished sry")
             return False
         line = self.lines[self.i]
+        self.i += 1
         if line != 'turn' and line != 'winner':
             line = line.split(' ')
             pos = (int(line[2]), int(line[1]))
@@ -633,7 +640,8 @@ class GUI:
                 case 'delete':
                     self.delete_coords(pos)
                 case 'unload':
-                    self.unload(pos, (int(line[4]), int(line[3])))
+                    choice = 1  # choice can be 1 or 2
+                    self.unload(pos, (int(line[4]), int(line[3])), choice)  # todo choice
                 # todo continue cases. there's probably other actions? yea like turn end, cop, etc
         elif line == 'turn':
             self.turn_end()
@@ -645,8 +653,11 @@ class GUI:
 
     def replay_turn(self):
         turn = True
+        self.draw = False  # doesn't try to update all the graphics every action
         while turn:
             turn = self.replay_move(turn)
+        self.draw = None
+        self.update()
 
     def close(self):
         if self.replayfile is not None:

@@ -32,16 +32,18 @@ class Engine:
     big main class for game
     """
 
-    def __init__(self, map_path, co1, co2):
+    def __init__(self, map_path, co1, co2, rng_seed):
 
         self.winner = 0
         self.turns = -1
         self.map_info = ([], [], [], [], [], [])  # ownedby, stars, repair, production, access, special
         self.von_bolt_missile = [-20, (-20, -20)]  # [turn popped, (position popped)]
-        self.mp = map_path
         self.income = 1000  # hf is 2000
 
-        # co  # todo this will be taken from GUI next
+        self.mp = map_path
+        self.rng_seed = int(rng_seed)
+
+        # co
         self.p1 = co1
         self.p2 = co2
 
@@ -184,7 +186,7 @@ class Engine:
             enemy_units = self.p1['units']
         # add enemy units as blockers
         for enemy_unit in enemy_units:
-            if enemy_unit['position'] != (-10, -10):
+            if enemy_unit['position'][0] != -10:
                 grid[enemy_unit['position']] = 12
 
         if pos2 is None:
@@ -199,7 +201,7 @@ class Engine:
         return movecost
 
     def action(self, pos, desired_pos, desired_action, target_pos=None):
-        if pos == (-10, -10):
+        if pos[0] == -10:
             raise CustomError("loaded units can't do anything")
         u1 = self.return_unit(pos)  # unit making the move
         if u1 is None:
@@ -287,77 +289,78 @@ class Engine:
             if u3 is not None:  # if there is actually a unit there, see what we can do
                 if u3['army'] != u1['army']:  # trapped in fog (other traps are possible)
                     raise CustomError(f"can't move, enemy {u3['type']} already there")
-                else:  # a friendly unit is on that space. load, join, or fail movement
-                    if desired_action != 'wait':  # don't allow join/load with fire/hide/repair
-                        raise CustomError(f"can't do that! Friendly {u3['type']} already in that space")
-                    elif u3['type'] == u1['type'] and u3['hp'] <= 89:
-                        if len(u1['loaded']) != 0 or len(u3['loaded']) != 0:  # transports with units in cannot join
-                            raise CustomError(f"can't join: units are loaded in the joiner or joinee")
-                        display_hp1 = int(1 + u1['hp'] / 10)
-                        display_hp3 = int(1 + u3['hp'] / 10)
-                        u3['hp'] += u1['hp']
-                        u3['ammo'] += u1['ammo']
-                        u3['fuel'] += u1['fuel']
-                        u3['move'] = 0  # joined units aren't allowed to move this turn nomatter what
-                        u1['hp'] = -1  # kill this unit the same way firing kills it
+                # a friendly unit is on that space. load, join, or fail movement
+                if desired_action != 'wait':  # don't allow join/load with fire/hide/repair
+                    raise CustomError(f"can't do that! Friendly {u3['type']} already in that space")
+                elif u3['type'] == u1['type'] and u3['hp'] <= 89:
+                    if len(u1['loaded']) != 0 or len(u3['loaded']) != 0:  # transports with units in cannot join
+                        raise CustomError(f"can't join: units are loaded in the joiner or joinee")
+                    display_hp1 = int(1 + u1['hp'] / 10)
+                    display_hp3 = int(1 + u3['hp'] / 10)
+                    u3['hp'] += u1['hp']
+                    u3['ammo'] += u1['ammo']
+                    u3['fuel'] += u1['fuel']
+                    u3['move'] = 0  # joined units aren't allowed to move this turn nomatter what
+                    u1['hp'] = -1  # kill this unit the same way firing kills it
 
-                        # joined units have a minimum cap of their VISIBLE health adding. I think?
-                        # 5(1) + 18(2) = 23(3)
-                        # 5(1) + 12(2) = 20(3) NOT 17(2)
-                        # 45(5) + 40(5) = 95(10)
-                        # 55(6) + 40(5) = 105-99(10)
-                        if u3['hp'] >= 99:  # if the unit went over 99 hp
-                            u3['hp'] = 99  # cap it
-                            if display_hp1 + display_hp3 > 10:  # if the display hps add to more than 10, get funds.
-                                if self.turns % 2 == 0:
-                                    self.p1['funds'] = int(
-                                        self.p1['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
-                                else:
-                                    self.p2['funds'] = int(
-                                        self.p2['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
-                        elif int(1 + (u3['hp']) / 10) < display_hp1 + display_hp3:  # if display hps didn't add
-                            u3['hp'] = (display_hp1 + display_hp3 - 1) * 10  # bump it up a bit to add display hps
-                        max_ammo = types[u3['type']][0]
-                        max_fuel = types[u3['type']][1]
-                        u3['ammo'] = max_ammo if u3['ammo'] > max_ammo else u3['ammo']  # cap it
-                        u3['fuel'] = max_fuel if u3['fuel'] > max_fuel else u3['fuel']  # cap it
+                    # joined units have a minimum cap of their VISIBLE health adding. I think?
+                    # 5(1) + 18(2) = 23(3)
+                    # 5(1) + 12(2) = 20(3) NOT 17(2)
+                    # 45(5) + 40(5) = 95(10)
+                    # 55(6) + 40(5) = 105-99(10)
+                    if u3['hp'] >= 99:  # if the unit went over 99 hp
+                        u3['hp'] = 99  # cap it
+                        if display_hp1 + display_hp3 > 10:  # if the display hps add to more than 10, get funds.
+                            if self.turns % 2 == 0:
+                                self.p1['funds'] = int(
+                                    self.p1['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
+                            else:
+                                self.p2['funds'] = int(
+                                    self.p2['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
+                    elif int(1 + (u3['hp']) / 10) < display_hp1 + display_hp3:  # if display hps didn't add
+                        u3['hp'] = (display_hp1 + display_hp3 - 1) * 10  # bump it up a bit to add display hps
+                    max_ammo = types[u3['type']][0]
+                    max_fuel = types[u3['type']][1]
+                    u3['ammo'] = max_ammo if u3['ammo'] > max_ammo else u3['ammo']  # cap it
+                    u3['fuel'] = max_fuel if u3['fuel'] > max_fuel else u3['fuel']  # cap it
 
-                    elif u3['type'] in ['apc', 'bboat', 'lander', 'tcopter', 'carrier', 'cruiser']:
-                        check = u3['loaded']  # attempt loading
-                        match u3['type']:
-                            # apc is 1x space, foot
-                            # bboat is 2x space, foot
-                            # lander is 2x space, land unit
-                            # tcopter is 1x space, foot
-                            # carrier is 2x space, air
-                            # cruiser is 2x space, copter (b or t)
-                            case 'apc':
-                                if len(u3['loaded']) == 0 and u1['type'] in ['inf', 'mech']:
-                                    u3['loaded'] = u1
-                            case 'bboat':
-                                if len(u3['loaded']) < 2 and u1['type'] in ['inf', 'mech']:
-                                    u3['loaded'].append(u1)
-                            case 'lander':
-                                if len(u3['loaded']) < 2 and u1['tread'] not in ['pipe', 'air', 'sea', 'lander']:
-                                    u3['loaded'].append(u1)
-                            case 'tcopter':
-                                if len(u3['loaded']) == 0 and u1['type'] in ['inf', 'mech']:
-                                    u3['loaded'].append(u1)
-                            case 'carrier':
-                                if len(u3['loaded']) < 2 and u1['tread'] == 'air':
-                                    u3['loaded'].append(u1)
-                            case 'cruiser':
-                                if len(u3['loaded']) < 2 and u1['type'] in ['bcopter', 'tcopter']:
-                                    u3['loaded'].append(u1)
-                        if u3['loaded'] == check:
-                            # doesn't load even tho u tried
-                            raise CustomError(
-                                f"can't load {u1['type']} into {u3['type']} with loaded: {len(u3['loaded'])}")
-                        else:
-                            u1['position'] = (-10, -10)  # all loaded units go to these coords off the map
+                elif u3['type'] in ['apc', 'bboat', 'lander', 'tcopter', 'carrier', 'cruiser']:
+                    check = len(u3['loaded'])  # attempt loading
+                    match u3['type']:
+                        # apc is 1x space, foot
+                        # bboat is 2x space, foot
+                        # lander is 2x space, land unit
+                        # tcopter is 1x space, foot
+                        # carrier is 2x space, air
+                        # cruiser is 2x space, copter (b or t)
+                        case 'apc':
+                            if len(u3['loaded']) == 0 and u1['type'] in ['inf', 'mech']:
+                                u3['loaded'].append(u1)
+                        case 'bboat':
+                            if len(u3['loaded']) < 2 and u1['type'] in ['inf', 'mech']:
+                                u3['loaded'].append(u1)
+                        case 'lander':
+                            if len(u3['loaded']) < 2 and u1['tread'] not in ['pipe', 'air', 'sea', 'lander']:
+                                u3['loaded'].append(u1)
+                        case 'tcopter':
+                            if len(u3['loaded']) == 0 and u1['type'] in ['inf', 'mech']:
+                                u3['loaded'].append(u1)
+                        case 'carrier':
+                            if len(u3['loaded']) < 2 and u1['tread'] == 'air':
+                                u3['loaded'].append(u1)
+                        case 'cruiser':
+                            if len(u3['loaded']) < 2 and u1['type'] in ['bcopter', 'tcopter']:
+                                u3['loaded'].append(u1)
+                    if len(u3['loaded']) == check:
+                        # doesn't load even tho u tried
+                        raise CustomError(
+                            f"can't load {u1['type']} into {u3['type']} with loaded: {len(u3['loaded'])}")
                     else:
-                        # not allowed to enter that space if it's not a transport or the same unit below 10hp
-                        raise CustomError(f"can't move, friendly {u3['type']} already there")
+                        u1['position'] = (-10, -10 - len(u3['loaded']))
+                        # all loaded units go to x=-10 and y=-10 - number they are loaded as (so only -11 or -12)
+                else:
+                    # not allowed to enter that space if it's not a transport or the same unit below 10hp
+                    raise CustomError(f"can't move, friendly {u3['type']} already there")
 
         # no enemy unit is in the way, the action is allowed
         match desired_action:
@@ -414,9 +417,12 @@ class Engine:
                         u2['Av'] = int(u2['Av'] * 1.5)  # assume how this 1.5x damage works
 
                     if sonja and counter and eSCOP:
-                        u2, u1 = fire(u2, u1, counter)  # swap order
+                        u2, u1 = fire(u2, u1, counter, self.rng_seed)  # swap order
                     else:
-                        u1, u2 = fire(u1, u2, counter)
+                        u1, u2 = fire(u1, u2, counter, self.rng_seed)
+                    self.rng_seed += 1  # change rng in a consistent waY
+                    # this way you don't get the same engagement giving the same every time in a given match
+                    # but you also can predict exactly what damage is done given a set seed and set move order (replays)
 
                     # reset weird CO buffs
                     if u1['type'] in indr and javier:
@@ -590,13 +596,28 @@ class Engine:
             raise CustomError("can't delete: that unit isn't owned by the player who's turn it is!")
         self.update()
 
-    def unload(self, pos, target_pos):
-        # todo this isn't finished. all it does is resupply the lander!
-        #  the choice of unit to unload needs to be somewhere in UI, then that fed in here.
-        #  the destination of the unloaded unit also needs to be in UI (target pos should b good)
-        u = self.return_unit(pos)
-        # self.delete_unit(u)  # why was a delete here? bad idea uhh
+    def unload(self, pos, target_pos, choice):
 
+        u = self.return_unit(pos)
+        if self.turns % 2 == 0:
+            army = self.p1['army']
+        else:
+            army = self.p2['army']
+        if u['army'] != army:
+            raise CustomError(f"unit doesn't belong to player who's turn it is")
+        if u['type'] not in ['apc', 'bboat', 'lander', 'tcopter', 'carrier', 'cruiser']:
+            raise CustomError(f"{u['type']} can't have units inside it!")
+        choicepos = (pos[0], pos[1] - choice)
+        check = True
+        for ul in u['loaded']:
+            if ul['position'] == choicepos:
+                check = False
+                break
+        if check:
+            raise CustomError("no unit to unload")
+        if abs((pos[0] - target_pos[0]) + (pos[1] - target_pos[1])) != 1:
+            raise CustomError("unload tile is not adjacent to carrier")
+        ul['position'] = target_pos
         types = {
             'aa': [9, 60],
             'apc': [0, 60],
@@ -624,13 +645,14 @@ class Engine:
             'tcopter': [0, 99],
             'tank': [9, 70]
         }  # ammo, fuel
-        u['ammo'] = types[u['type']][0]
-        u['fuel'] = types[u['type']][1]
+        ul['ammo'] = types[ul['type']][0]
+        ul['fuel'] = types[ul['type']][1]
         # set fuel, ammo to full
-        if self.p1['army'] == u['army']:
-            self.p1['units'].append(u)
-        else:
-            self.p2['units'].append(u)
+        u['loaded'].remove(ul)
+        if len(u['loaded']) == 1:  # shouldn't ever be bigger than 2 so only checking if == 1 after 1 removed.
+            ul2 = u['loaded'][0]
+            ul2['position'] = (-10, -10 - 1)
+
 
     def capture_success(self, position):
         armies = [

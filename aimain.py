@@ -81,9 +81,10 @@ You can use a genetic algorithm on any system which can be randomly "mutated" in
 # text file goes through every operation performed (e.g. "cap/wait func" "pos1" "pos2" every line is an action)
 
 import platform
+import time
 import numpy as np
 
-from customclasses import WinError
+from customclasses import WinError, CustomError
 from engine import Engine
 from co import co_maker
 
@@ -93,43 +94,60 @@ def test():
         mp = r"/home/nathaniel/PycharmProjects/awbw/maps/Last Vigil.txt"
     else:
         mp = r"maps/Last Vigil.txt"
-    E = Engine(mp, co_maker('jake', 'purplelightning'), co_maker('jess', 'yellowcomet'))
+    E = Engine(mp, co_maker('jake', 'purplelightning'), co_maker('jess', 'yellowcomet'), np.random.randint(1e9))
 
-    P = Player()
+    P1 = Player()  # make 2 players to take each turn
+    P2 = Player()
 
-    win = 0
-    while win == 0:
-        # todo count total iterations so u win as fast as possible
-        action, pos1, pos2, pos3, unit = P.ask_brain(E.p1, E.p2, E.map_info)
-        # todo round action then lookup from list
-        try:
-            match action:
-                case 'cop':
-                    E.power(1)
-                case 'scop':
-                    E.power(2)
-                case 'turn_end':
-                    E.turn_end()
-                case 'unload':
-                    E.unload(pos1, pos2)
-                case 'move':
-                    E.action(pos1, pos2, desired_action='wait')
-                case 'hide':
-                    E.action(pos1, pos2, desired_action='hide')
-                case 'fire':
-                    E.action(pos1, pos2, desired_action='fire', target_pos=pos3)
-                case 'repair':
-                    E.action(pos1, pos2, desired_action='repair', target_pos=pos3)
-                case 'delete_coords':
-                    E.delete_coords(pos1)
-                case 'build':
-                    E.build(pos1, unit)
-        except WinError as Err:  # silly way of doing it but ok
-            win = Err
-            print(win)
-        finally:
-            win = E.winner
-    print("omg a win???")
+    with open('replays/' + '_'.join([str(e).zfill(2) for e in time.localtime()[0:6]]) + '.txt', 'w') as replayfile:
+        # save replay file
+
+        win = 0
+        turn = 0
+        move1 = 0
+        move2 = 0
+        while win == 0:
+            if turn % 2 == 0:
+                action, pos1, pos2, pos3, unit = P1.ask_brain(E.p1, E.p2, E.map_info)
+                move1 += 1
+            else:
+                action, pos1, pos2, pos3, unit = P2.ask_brain(E.p2, E.p1, E.map_info)  # swap p1 and p2
+                move2 += 2
+
+            try:
+                match action:
+                    case 'cop':
+                        E.power(1)
+                    case 'scop':
+                        E.power(2)
+                    case 'turn_end':
+                        E.turn_end()
+                        turn += 1
+                    case 'unload':
+                        E.unload(pos1, pos2, pos3[0])  # choice of unit to unload, hard,
+                    case 'move':
+                        E.action(pos1, pos2, desired_action='wait')
+                    case 'hide':
+                        E.action(pos1, pos2, desired_action='hide')
+                    case 'fire':
+                        E.action(pos1, pos2, desired_action='fire', target_pos=pos3)
+                    case 'repair':
+                        E.action(pos1, pos2, desired_action='repair', target_pos=pos3)
+                    case 'delete_coords':
+                        E.delete_coords(pos1)
+                    case 'build':
+                        E.build(pos1, unit)
+            except CustomError as Err:
+                # print(Err)
+                x = 1  # the punishment is just number of turns right? seems gd
+            else:  # if the action goes through alright (no CustomError)
+                if action == 'build':
+                    replayfile.write(f"{action} {pos1[1]} {pos1[0]} {unit}" + '\n')
+                else:
+                    replayfile.write(f"{action} {pos1[1]} {pos1[0]} {pos2[1]} {pos2[0]} {pos3[1]} {pos3[0]}" + '\n')
+            finally:
+                win = E.winner
+        print(f"omg a win??? army {win} wins")
 
 
 class Player:
@@ -149,10 +167,10 @@ class Player:
         coords2 = (np.random.random(), np.random.random())
         coords3 = (np.random.random(), np.random.random())
         unit = np.random.random()
-        # brain always returns action and 3 coords
+        # brain always returns action and 3 coords and unit
         return action, coords1, coords2, coords3, unit
 
 
 class Genome:
-    def __init__(self):
+    def __init__(self, a, b):
         x = 1

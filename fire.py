@@ -1,8 +1,8 @@
 import numpy as np
 
 
-def fire(unit1, unit2, counter):
-    dmg, ammo = damage_calc(unit1, unit2)
+def fire(unit1, unit2, counter, rng_seed):
+    dmg, ammo = damage_calc(unit1, unit2, rng_seed)
     if ammo:
         unit1['ammo'] = unit1['ammo'] - 1
     unit2['hp'] = unit2['hp'] - dmg
@@ -10,20 +10,21 @@ def fire(unit1, unit2, counter):
     if unit2['hp'] < 0:  # outside hp range (0 to 99 is alive. 90-99 is 10hp, 0-9hp is 1hp)
         return unit1, unit2  # garanteed no counter-attack
     if counter:
-        dmg, ammo = damage_calc(unit2, unit1)
+        dmg, ammo = damage_calc(unit2, unit1, rng_seed + 10000)  # change the rng in a consistent way
         if ammo:
             unit2['ammo'] = unit2['ammo'] - 1
         unit1['hp'] = unit1['hp'] - dmg
     return unit1, unit2
 
 
-def damage_calc(u1, u2):
+def damage_calc(u1, u2, rng_seed):
     ammo = True
     base = base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '')  # base damage lookup
     if base == 0:
         if u1['ammo'] != 0:  # if tank has to use secondary on inf for example
             base = base_damage(u1['type'], u2['type'], 'AMMO')
             ammo = False
+    np.random.seed(int(rng_seed))
     damage = base * u1['Av'] / 100 + np.random.choice(u1['L'][1] + u1['L'][0]) - u1['L'][0]  # attack value
     hp = int(1 + u1['hp'] / 10) / 10  # hp 'out of 10' divided by 10: full unit is 1x damage, half hp is 0.5x
     defence = 2 - (u2['Dv'] + (u2['Dtr'] * int(1 + u2['hp'] / 10))) / 100  # defence multiplier
