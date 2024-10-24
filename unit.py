@@ -73,7 +73,7 @@ def unit_stats_editor(unit, name, com, power, funds, properties):
     sea = unit['type'] in ['bship', 'bboat', 'carrier', 'cruiser', 'lander', 'sub']
 
     # attack
-    unit['Av'] += com
+    unit['Av'] += com * 10  # com = 1 for 1 tower owned, so x10 for Av buff
     # luck
     # range
     # move

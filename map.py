@@ -104,9 +104,9 @@ def convert_id_to_details(idn):
         [3, 2, 2, 7, 5],  # port
         [3, 1, 0, 0, 5],  # city
         [3, 0, 0, 0, 5],  # comtower
-        [3, 0, 0, 0, 5],  # lab
+        [3, 0, 0, 0, 6],  # lab
         [4, 0, 0, 9, 0],  # mountain
-        [4, 1, 0, 0, 5]  # hq
+        [4, 1, 0, 0, 6]  # hq
     ]
     all_terrain = [
         'road', 'shoal', 'bridge', 'river', 'piperubble', 'pipeseam', 'pipe', 'sea',  # others before plain pipe

@@ -270,7 +270,7 @@ class GUI:
         # todo probabilities :>
 
     def select_map_path(self):
-        self.map_path.set(filedialog.askdirectory())
+        self.map_path.set(filedialog.askopenfilename())
         self.entry_map_path.xview_moveto(1)
 
     def select_replay_path(self):

@@ -21,6 +21,23 @@ def co_maker(name='jake', army='neutral'):
     }  # power: 0=CO, 1=COP, 2=SCOP
 
 
+def com_change(co1, co2):
+    for i, unit in enumerate(co1['units']):
+        co1['units'][i] = unit_maker(
+            unit['army'], unit['type'], co1, unit['position'], stars=unit['Dtr'], terr=unit['terr'], hp=unit['hp'],
+            fuel=unit['fuel'], ammo=unit['ammo'], capture=unit['capture'], hidden=unit['hidden'], loaded=unit['loaded'],
+            move=unit['move']
+        )
+
+    for i, unit in enumerate(co2['units']):
+        co1['units'][i] = unit_maker(
+            unit['army'], unit['type'], co1, unit['position'], stars=unit['Dtr'], terr=unit['terr'], hp=unit['hp'],
+            fuel=unit['fuel'], ammo=unit['ammo'], capture=unit['capture'], hidden=unit['hidden'], loaded=unit['loaded'],
+            move=unit['move']
+        )
+    return co1, co2
+
+
 def activate_or_deactivate_power(co1, co2, power_level_change):
     # set co stats
     # remake all units

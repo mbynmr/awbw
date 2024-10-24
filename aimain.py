@@ -304,11 +304,12 @@ class Brain:
         self.model = tf.keras.models.Sequential([
             tf.keras.layers.Input(inshape),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.zeros_initializer()),
+            tf.keras.layers.Dropout(0.6),  # set some values to 0
+            tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.keras.initializers.RandomUniform()),
+            tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.keras.initializers.RandomNormal(stddev=0.05)),
+            tf.keras.layers.GaussianNoise(0.1),
+            tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.keras.initializers.RandomNormal(stddev=0.02)),
             tf.keras.layers.Dropout(0.2),
-            # tf.keras.layers.Conv2D(filters=64, kernel_size=[3, 3], bias_initializer=tf.zeros_initializer(),
-            #                        padding="same", activation=tf.nn.relu, name="conv_chad_2"),
-            # kernel_initializer=tf.keras.contrib.layers.xavier_initializer(),
             tf.keras.layers.Dense(outshape, activation='softmax')
         ])
 
@@ -321,6 +322,8 @@ class Brain:
         shape = big_array.shape
         predictions = self.model(tf.reshape(tf.convert_to_tensor(big_array), (1, *shape)))
         out = tf.nn.softmax(predictions)
+        # print(out)
+        # time.sleep(3/5)
         return np.array(out)[0]
 
     def save_weights(self, path):

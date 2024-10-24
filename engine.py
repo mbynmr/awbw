@@ -1,7 +1,8 @@
 import time
 import numpy as np
+from pycparser.ply.yacc import LRTable
 
-from co import activate_or_deactivate_power, turn_resupplies
+from co import activate_or_deactivate_power, turn_resupplies, com_change
 from unit import unit_maker
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
@@ -127,7 +128,7 @@ class Engine:
         # 0: road, 1: plain, 2: wood, 3: river, 4: shoal, 5: sea, 6: pipe, 7: port, 8: base, 9: mountain, 10: reef
         grid = np.zeros_like(access)
         # special = self.map_info[5]
-        # # special - 0: misc, 1: pipeseam, 2: missile, 3: road, 4: plain, 5: urban
+        # # special - 0: misc, 1: pipeseam, 2: missile, 3: road, 4: plain, 5: urban, 6: lab&hq
         match u['tread']:
             case 'treads':
                 grid = np.where(access == 0, 1, 12)  # road
@@ -364,8 +365,9 @@ class Engine:
                         'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
                         'orangestar', 'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy',
                         'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
-                    ][self.map_info[0][desired_pos]] and self.map_info[5][desired_pos] == 5:
-                        # if tile is not owned by friendly, terrain is urban
+                    ][self.map_info[0][desired_pos]] and (
+                            self.map_info[5][desired_pos] == 5 or self.map_info[5][desired_pos] == 6):
+                        # if tile is not owned by friendly, terrain is urban or hq/lab
                         u1['capture'] += int(int(1 + u1['hp'] / 10) * 15 if sami else 10)
                         # im so confused why is this 10x or 15x for sami??? hp is already out of 10 why not 1x and 1.5x?
                         if u1['capture'] >= 20 or (sami and SCOP):  # capture happened!
@@ -656,39 +658,56 @@ class Engine:
             ul2 = u['loaded'][0]
             ul2['position'] = (-10, -10 - 1)
 
-
     def capture_success(self, position):
         armies = [
             'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
             'orangestar', 'redfire', 'yellowcomet', 'greysky', 'cobaltice', 'pinkcosmos', 'tealgalaxy',
             'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
         ]
+        if self.map_info[1][position] == 3 and self.map_info[5][position] == 5:
+            com = True  # com tower got captured
+        else:
+            com = False
+        preowned = False
         if self.turns % 2 == 0:
             self.p1['properties'] += 1
             props = self.p1['properties']
-            self.map_info[0][position] = armies.index(self.p1['army'])
             army = self.p1['army']
-            enemy_army = self.p2['army']
-            # todo com tower
+            if self.p2['army'] == armies[self.map_info[0][position]]:  # check whether enemy owned this property before
+                preowned = True
+            self.map_info[0][position] = armies.index(self.p1['army'])  # set new owner
+            if com:
+                self.p1['com'] += 1
         else:
             self.p2['properties'] += 1
             props = self.p2['properties']
-            self.map_info[0][position] = armies.index(self.p2['army'])
             army = self.p2['army']
-            enemy_army = self.p1['army']
+            if self.p1['army'] == armies[self.map_info[0][position]]:  # check whether enemy owned this property before
+                preowned = True
+            self.map_info[0][position] = armies.index(self.p2['army'])
+            if com:
+                self.p2['com'] += 1
 
         if props >= self.map_rules['capturel']:
             self.winner = army
-            print(f"{self.winner} win by capture!")
+            print(f"{self.winner} win by reaching capture limit!")
 
-        if enemy_army == armies[self.map_info[0][position]]:  # check whether enemy owned this property before
-            if self.map_info[1][position] == 4 and self.map_info[5][position] == 5:  # if hq
+        if preowned:
+            if self.map_info[1][position] == 4 and self.map_info[5][position] == 6:  # if hq
                 self.winner = army
                 print(f"{self.winner} win by hq cap!")
+            elif self.map_info[1][position] == 3 and self.map_info[5][position] == 6:
+                count_labs = True  # todo need to count labs - if this capture was other player's last lab: win
             if self.turns % 2 == 0:
                 self.p2['properties'] -= 1
+                if com:
+                    self.p2['com'] -= 1
+                    self.p1, self.p2 = com_change(self.p1, self.p2)  # todo javier fucks this up big
             else:
                 self.p1['properties'] -= 1
+                if com:
+                    self.p2['com'] -= 1
+                    self.p2, self.p1 = com_change(self.p2, self.p1)
 
         self.income_update()
 
