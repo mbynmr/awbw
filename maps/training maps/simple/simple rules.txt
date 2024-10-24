@@ -1,0 +1,1 @@
+{'unitl': 3, 'capturel': 4, 'dayl': 0, 'fog': 0, 'weather': 0, 'fundstart': 0, 'banned': []}

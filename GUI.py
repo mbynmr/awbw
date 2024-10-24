@@ -513,8 +513,8 @@ class GUI:
         else:
             self.update()
             if self.replayfile is not None:
-                self.replayfile.write(
-                    f"repair {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} {target_pos[0]}" + '\n')
+                self.replayfile.write(f"repair {pos[1]} {pos[0]} {desired_pos[1]} {desired_pos[0]} {target_pos[1]} "
+                                      f"{target_pos[0]}" + '\n')
 
     def unload(self, pos=None, target_pos=None, choice=1):
         if pos is None:
@@ -533,8 +533,6 @@ class GUI:
             pos = self.get_poses_from_UI(1)
         try:
             self.E.delete_coords(pos)
-            if self.replayfile is not None:
-                self.replayfile.write(f"delete {pos[1]} {pos[0]}" + '\n')
         except CustomError as Err:
             print(Err)
         else:

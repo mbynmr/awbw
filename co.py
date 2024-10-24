@@ -1,7 +1,7 @@
 import numpy as np
 
 from unit import unit_maker
-from customclasses import CustomError
+from customerrors import CustomError
 
 
 def co_maker(name='jake', army='neutral'):

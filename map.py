@@ -1,6 +1,4 @@
 import numpy as np
-# import matplotlib.pyplot as plt
-# from tqdm import tqdm
 
 
 def load_map(path='maps/Last Vigil.txt'):
@@ -18,8 +16,10 @@ def load_map(path='maps/Last Vigil.txt'):
         for j in range(ids.shape[1]):
             ownedby[i, j], stars[i, j], repair[i, j], production[i, j], access[i, j], special[i, j] = \
                 convert_id_to_details(ids[i, j])
-    # in awbw across is the first coordinate like (x, y) starting top left corner. this does not match, b careful!
-    return ownedby, stars, repair, production, access, special
+    with open(path.split('.txt')[0] + ' rules.txt', 'r') as rf:
+        map_rules = eval(rf.readline())
+        # map_rules = {'unitl':50, 'capturel': 23, 'dayl': 0, 'banned': []}
+    return (ownedby, stars, repair, production, access, special), map_rules
 
 
 def convert_id_to_details(idn):

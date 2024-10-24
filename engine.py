@@ -6,7 +6,7 @@ from unit import unit_maker
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
 from pathfind import path_find
-from customclasses import WinError, CustomError
+from customerrors import CustomError
 
 
 # todo sturm & lash movement
@@ -37,6 +37,7 @@ class Engine:
         self.winner = 0
         self.turns = -1
         self.map_info = ([], [], [], [], [], [])  # ownedby, stars, repair, production, access, special
+        self.map_rules = {'unitl':0, 'capturel': 0, 'dayl': 0, 'fog': 0, 'weather': 0, 'fundstart': 0, 'banned': []}
         self.von_bolt_missile = [-20, (-20, -20)]  # [turn popped, (position popped)]
         self.income = 1000  # hf is 2000
 
@@ -47,18 +48,10 @@ class Engine:
         self.p1 = co1
         self.p2 = co2
 
-    def update(self, draw=None):
-        return
-        # if self.winner != 0:
-        #     if self.turns % 2 == 0:
-        #         raise WinError(f"winner!!!! p1 in {self.turns} turns")
-        #     else:
-        #         raise WinError(f"winner!!!! p2 in {self.turns} turns")
-
     def load_map(self, path=None):
         if path is None:
             path = self.mp  # todo
-        self.map_info = load_map(path)
+        self.map_info, self.map_rules = load_map(path)
         # ownedby, stars, repair, production, access, special
         armies = [
             'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun', 'orangestar',
@@ -115,13 +108,12 @@ class Engine:
                 self.delete_unit(u)  # before deleting the unit, delete all units loaded inside it! (calls itself wowwe)
                 # could be an inf on a tcopter on a cruiser
                 # could be an inf on an apc on a lander
-        if u in self.p1['units']:
+        if u in self.p1['units']:  # todo is this working?
             self.p1['units'].remove(u)
         elif u in self.p2['units']:
             self.p2['units'].remove(u)
         else:
             raise CustomError("oh no big bad, crash crash crash")
-        self.update()
 
     def check_movement(self, u, pos1, pos2=None):
         # returns: movecost (0-11 (fighter with +2 move) is possible, -1 is impossible)
@@ -249,32 +241,32 @@ class Engine:
                 raise CustomError(f"move is impossible for some reason")
 
         types = {
-                        'aa': [9, 60],
-                        'apc': [0, 60],
-                        'arty': [9, 50],
-                        'bcopter': [6, 99],
-                        'bship': [9, 99],
-                        'bboat': [-1, 50],
-                        'bbomb': [0, 45],
-                        'bomber': [9, 99],
-                        'carrier': [9, 99],
-                        'cruiser': [9, 99],
-                        'fighter': [9, 99],
-                        'inf': [-1, 99],
-                        'lander': [0, 99],
-                        'med': [8, 50],
-                        'mech': [3, 70],
-                        'mega': [3, 50],
-                        'missile': [6, 50],
-                        'neo': [9, 99],
-                        'pipe': [9, 99],
-                        'recon': [-1, 80],
-                        'rocket': [6, 50],
-                        'stealth': [6, 60],
-                        'sub': [6, 60],
-                        'tcopter': [0, 99],
-                        'tank': [9, 70]
-                    }  # ammo, fuel
+            'aa': [9, 60],
+            'apc': [0, 60],
+            'arty': [9, 50],
+            'bcopter': [6, 99],
+            'bship': [9, 99],
+            'bboat': [-1, 50],
+            'bbomb': [0, 45],
+            'bomber': [9, 99],
+            'carrier': [9, 99],
+            'cruiser': [9, 99],
+            'fighter': [9, 99],
+            'inf': [-1, 99],
+            'lander': [0, 99],
+            'med': [8, 50],
+            'mech': [3, 70],
+            'mega': [3, 50],
+            'missile': [6, 50],
+            'neo': [9, 99],
+            'pipe': [9, 99],
+            'recon': [-1, 80],
+            'rocket': [6, 50],
+            'stealth': [6, 60],
+            'sub': [6, 60],
+            'tcopter': [0, 99],
+            'tank': [9, 70]
+        }  # ammo, fuel
 
         u2 = self.return_unit(target_pos)  # unit being fired on
         if u2 is not None:
@@ -503,17 +495,20 @@ class Engine:
                 if u['hp'] < 0:
                     self.delete_unit(u)
 
-        self.update()  # after the move is done, update the board!
-
     def build(self, pos, typ):
         if self.turns % 2 == 0:
             army = self.p1['army']
             funds = self.p1['funds']
+            unitc = len(self.p1['units'])
             hachiSCOP = self.p1['name'] == 'hachi' and self.p1['power'] == 2
         else:
             army = self.p2['army']
             funds = self.p2['funds']
+            unitc = len(self.p2['units'])
             hachiSCOP = self.p2['name'] == 'hachi' and self.p2['power'] == 2
+
+        if unitc >= self.map_rules['unitl']:
+            raise CustomError(f"map doesn't allow more than {unitc} units")
 
         if army != [
             'neutral', 'amberblaze', 'blackhole', 'bluemoon', 'browndesert', 'greenearth', 'jadesun',
@@ -521,6 +516,9 @@ class Engine:
             'purplelightning', 'acidrain', 'whitenova', 'azureasteroid', 'noireclipse'
         ][self.map_info[0][pos]]:  # if that space (production hopefully) owned by this turn's player
             raise CustomError("this player doesn't own that space")
+
+        if typ in self.map_rules['banned']:
+            raise CustomError(f"map doesn't allow production of {typ}")
 
         sea = typ in ['bship', 'bboat', 'carrier', 'cruiser', 'lander', 'sub']
         air = typ in ['bcopter', 'bbomb', 'bomber', 'fighter', 'stealth', 'tcopter']
@@ -598,7 +596,6 @@ class Engine:
             self.delete_unit(u)
         else:
             raise CustomError("can't delete: that unit isn't owned by the player who's turn it is!")
-        self.update()
 
     def unload(self, pos, target_pos, choice):
 
@@ -668,23 +665,31 @@ class Engine:
         ]
         if self.turns % 2 == 0:
             self.p1['properties'] += 1
+            props = self.p1['properties']
             self.map_info[0][position] = armies.index(self.p1['army'])
+            army = self.p1['army']
             enemy_army = self.p2['army']
             # todo com tower
         else:
             self.p2['properties'] += 1
+            props = self.p2['properties']
             self.map_info[0][position] = armies.index(self.p2['army'])
+            army = self.p2['army']
             enemy_army = self.p1['army']
+
+        if props >= self.map_rules['capturel']:
+            self.winner = army
+            print(f"{self.winner} win by capture!")
 
         if enemy_army == armies[self.map_info[0][position]]:  # check whether enemy owned this property before
             if self.map_info[1][position] == 4 and self.map_info[5][position] == 5:  # if hq
-                player_wins_by_hq_cap = 1  # todo
+                self.winner = army
+                print(f"{self.winner} win by hq cap!")
             if self.turns % 2 == 0:
                 self.p2['properties'] -= 1
             else:
                 self.p1['properties'] -= 1
 
-        # update a little bit (we don't render owning properties that's hard :>)
         self.income_update()
 
     def income_update(self):
@@ -710,7 +715,6 @@ class Engine:
                     raise CustomError("Somehow a property is not neutral and not either army. huh")
         self.p1['income'] = p1in
         self.p2['income'] = p2in
-        self.update()
 
     def power(self, level):
         if self.turns % 2 == 0:
@@ -725,7 +729,6 @@ class Engine:
 
         self.turns += 1
         self.turn_swap()
-        self.update()
 
     def turn_swap(self):  # p1 -> p2 turn end/start
         if self.turns % 2 == 1:  # going to p2 from p1
@@ -735,15 +738,15 @@ class Engine:
 
         # check win conditions (day limit ig?)
         p1win = False
-        if p1['properties'] > 23:
+        if p1['properties'] >= self.map_rules['capturel']:
             p1win = True
-        if self.turns > 40:  # turn limit 40 days?
-            if p1['properties'] > 15:
+        if int((self.turns + 1) / 2) + 1 >= self.map_rules['dayl'] > 0:  # turn limit in days
+            if p1['properties'] > p2['properties']:  # tiebreaker number of properties
                 p1win = True
         if self.turns >= 2 and len(p2['units']) == 0:  # if p2 has no units and it's not the start of the game
             p1win = True
         if p1win:
-            self.winner = p1['army']  # todo number for winner
+            self.winner = p1['army']
 
         p2, p1 = activate_or_deactivate_power(p2, p1, -p2['power'])  # p2's power gets deactivated if it was on
         p2['funds'] = int(p2['funds'] + int(p2['income']))  # income before property repairs
