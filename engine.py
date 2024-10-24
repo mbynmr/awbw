@@ -3,7 +3,7 @@ import numpy as np
 from pycparser.ply.yacc import LRTable
 
 from co import activate_or_deactivate_power, turn_resupplies, com_change
-from unit import unit_maker
+from unit import unit_maker, unit_stats_editor
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
 from pathfind import path_find
@@ -201,37 +201,37 @@ class Engine:
         if u1 is None:
             raise CustomError(f"somehow no unit is at position {pos} to make the move")
         elif self.turns % 2 == 0:  # even turn means p1 turn
-            if u1['army'] != self.p1['army']:
-                raise CustomError("selected unit is not owned by the player who's turn it is!")
-            else:
-                sami = self.p1['name'] == 'sami'  # this player sami
-                sasha = self.p1['name'] == 'sasha'  # this player sasha
-                SCOP = self.p1['power'] == 2
-                COP = self.p1['power'] == 1
-                eSCOP = self.p2['power'] == 2
-                eCOP = self.p2['power'] == 1
-                esasha = self.p2['name'] == 'sasha'  # other player sasha
-                javier = self.p2['name'] == 'javier'  # other player javier
-                sonja = self.p2['name'] == 'sonja'  # other player sonja
-                kanbei = self.p2['name'] == 'kanbei'  # other player kanbei
+            coname = self.p1['name']
+            econame = self.p2['name']
+            coarmy = self.p1['army']
+            copower = self.p1['power']
+            ecopower = self.p2['power']
+            self.action_do(self.p1, self.p2, u1, pos, desired_pos, desired_action, target_pos)
         else:  # odd turn means p2 turn
-            if u1['army'] != self.p2['army']:
-                raise CustomError("selected unit is not owned by the player who's turn it is!")
-            else:
-                sami = self.p2['name'] == 'sami'  # this player sami
-                sasha = self.p2['name'] == 'sasha'  # this player sasha
-                SCOP = self.p2['power'] == 2
-                COP = self.p2['power'] == 1
-                eSCOP = self.p1['power'] == 2
-                eCOP = self.p1['power'] == 1
-                esasha = self.p1['name'] == 'sasha'  # other player sasha
-                javier = self.p1['name'] == 'javier'  # other player javier
-                sonja = self.p1['name'] == 'sonja'  # other player sonja
-                kanbei = self.p1['name'] == 'kanbei'  # other player kanbei
+            coname = self.p2['name']
+            econame = self.p1['name']
+            coarmy = self.p2['army']
+            copower = self.p2['power']
+            ecopower = self.p1['power']
+            self.action_do(self.p2, self.p1, u1, pos, desired_pos, desired_action, target_pos)#
+
+
+    def action_do(self, p1, p2, u1, pos, desired_pos, desired_action, target_pos=None):
+        if u1['army'] != p1['army']:
+            raise CustomError("selected unit is not owned by the player who's turn it is!")
         if u1['move'] < 1:
             raise CustomError("unit cannot move anymore")
-        u1store = u1.copy()
+        SCOP = p1['power'] == 2
+        eSCOP = p2['power'] == 2
+        eCOP = p2['power'] == 1
+        sami = p1['name'] == 'sami'  # this player sami
+        sasha = p1['name'] == 'sasha'  # this player sasha
+        esasha = p2['name'] == 'sasha'  # other player sasha
+        javier = p2['name'] == 'javier'  # other player javier
+        sonja = p2['name'] == 'sonja'  # other player sonja
+        kanbei = p2['name'] == 'kanbei'  # other player kanbei
 
+        u1store = u1.copy()
         movecost = self.check_movement(u1, u1['position'], desired_pos)
         if movecost < 0:
             if movecost == -3:
@@ -305,12 +305,7 @@ class Engine:
                     if u3['hp'] >= 99:  # if the unit went over 99 hp
                         u3['hp'] = 99  # cap it
                         if display_hp1 + display_hp3 > 10:  # if the display hps add to more than 10, get funds.
-                            if self.turns % 2 == 0:
-                                self.p1['funds'] = int(
-                                    self.p1['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
-                            else:
-                                self.p2['funds'] = int(
-                                    self.p2['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
+                            p1['funds'] = int(p1['funds'] + int(u3['value'] * (display_hp1 + display_hp3 - 10) / 10))
                     elif int(1 + (u3['hp']) / 10) < display_hp1 + display_hp3:  # if display hps didn't add
                         u3['hp'] = (display_hp1 + display_hp3 - 1) * 10  # bump it up a bit to add display hps
                     max_ammo = types[u3['type']][0]
@@ -411,6 +406,11 @@ class Engine:
                     elif (kanbei and eSCOP) or (sonja and not eSCOP):  # sonja doesn't get 1.5x on SCOP right?
                         u2['Av'] = int(u2['Av'] * 1.5)  # assume how this 1.5x damage works
 
+                    # make sure unit stats are up to date
+                    u1 = unit_stats_editor(u1, p1['name'], p1['com'], p1['power'], p1['funds'], p1['properties'], 0)
+                    u2 = unit_stats_editor(u2, p2['name'], p2['com'], p2['power'], p2['funds'], p2['properties'], 0)
+                    # todo this sucks im so angry im leaving ok bye
+
                     if sonja and counter and eSCOP:
                         u2, u1 = fire(u2, u1, counter, self.rng_seed)  # swap order
                     else:
@@ -424,6 +424,7 @@ class Engine:
                         u2['Dv'] -= 80 if eSCOP else (40 if eCOP else 20)
                     elif (kanbei and eSCOP) or (sonja and not eSCOP):
                         u2['Av'] = int(u2['Av'] * 1.5)  # assume how this 1.5x damage works
+
 
             case 'repair':
                 if target_pos is None:
@@ -476,20 +477,12 @@ class Engine:
                 u2_dmg_value = int((int(1 + u2store['hp'] / 10) - int(1 + u2['hp'] / 10)) * u2['value'])
             else:
                 u2_dmg_value = int(int(1 + u2store['hp'] / 10) * u2['value'])
-            if self.turns % 2 == 0:  # even turn means p1 turn
-                self.p1['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
-                self.p2['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
-                if sasha and SCOP:  # this player sasha SCOP funds
-                    self.p1['funds'] = int(self.p1['funds'] + int(0.5 * u2_dmg_value))
-                elif esasha and eSCOP:  # enemy player sasha SCOP funds
-                    self.p2['funds'] = int(self.p2['funds'] + int(0.5 * u1_dmg_value))
-            else:
-                self.p2['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
-                self.p1['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
-                if sasha and SCOP:
-                    self.p2['funds'] = int(self.p2['funds'] + int(0.5 * u2_dmg_value))
-                elif esasha and eSCOP:
-                    self.p1['funds'] = int(self.p1['funds'] + int(0.5 * u1_dmg_value))
+            p1['charge'] += u1_dmg_value + int(0.5 * u2_dmg_value)
+            p2['charge'] += u2_dmg_value + int(0.5 * u1_dmg_value)
+            if sasha and SCOP:  # this player sasha SCOP funds
+                p1['funds'] = int(p1['funds'] + int(0.5 * u2_dmg_value))
+            elif esasha and eSCOP:  # enemy player sasha SCOP funds
+                p2['funds'] = int(p2['funds'] + int(0.5 * u1_dmg_value))
 
         # manage units that need deleting
         for u in [u1, u2, u3]:
@@ -676,8 +669,6 @@ class Engine:
             if self.p2['army'] == armies[self.map_info[0][position]]:  # check whether enemy owned this property before
                 preowned = True
             self.map_info[0][position] = armies.index(self.p1['army'])  # set new owner
-            if com:
-                self.p1['com'] += 1
         else:
             self.p2['properties'] += 1
             props = self.p2['properties']
@@ -685,8 +676,6 @@ class Engine:
             if self.p1['army'] == armies[self.map_info[0][position]]:  # check whether enemy owned this property before
                 preowned = True
             self.map_info[0][position] = armies.index(self.p2['army'])
-            if com:
-                self.p2['com'] += 1
 
         if props >= self.map_rules['capturel']:
             self.winner = army
@@ -696,18 +685,31 @@ class Engine:
             if self.map_info[1][position] == 4 and self.map_info[5][position] == 6:  # if hq
                 self.winner = army
                 print(f"{self.winner} win by hq cap!")
-            elif self.map_info[1][position] == 3 and self.map_info[5][position] == 6:
-                count_labs = True  # todo need to count labs - if this capture was other player's last lab: win
+            elif self.map_info[1][position] == 3 and self.map_info[5][position] == 6:  # if lab
+                enemy_labs = 0
+                for x in range(len(self.map_info[0].shape[0])):
+                    for y in range(len(self.map_info[0].shape[0])):
+                        if self.map_info[1][(x, y)] == 3 and self.map_info[5][(x, y)] == 6:
+                            enemy_labs += 1
+                            break
+                    if enemy_labs != 0:
+                        break
+                if enemy_labs == 0:
+                    self.winner = army
+                    print(f"{self.winner} win by final enemy lab capture!")
             if self.turns % 2 == 0:
                 self.p2['properties'] -= 1
                 if com:
+                    self.p1['com'] += 1
                     self.p2['com'] -= 1
-                    self.p1, self.p2 = com_change(self.p1, self.p2)  # todo javier fucks this up big
             else:
                 self.p1['properties'] -= 1
                 if com:
-                    self.p2['com'] -= 1
-                    self.p2, self.p1 = com_change(self.p2, self.p1)
+                    self.p1['com'] -= 1
+                    self.p2['com'] += 1
+
+        if com:
+            self.p1, self.p2 = com_change(self.p1, self.p2)
 
         self.income_update()
 

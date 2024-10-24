@@ -54,7 +54,9 @@ def unit_maker(army, typ, co, pos, stars=3, terr=5, hp=99,
     return unit_stats_editor(unit, coname, co['com'], co['power'], co['funds'], co['properties'])
 
 
-def unit_stats_editor(unit, name, com, power, funds, properties):
+def unit_stats_editor(unit, name, com, power, funds, properties, fresh_power=None):
+    if fresh_power is not None:
+        fresh_power = False
     # all_unit_typ = [
     #     'aa', 'apc', 'arty', 'bcopter', 'bship', 'bboat', 'bbomb', 'bomber', 'carrier', 'cruiser', 'fighter', 'inf',
     #     'lander', 'med', 'mech', 'mega', 'missile', 'neo', 'pipe', 'recon', 'rocket', 'stealth', 'sub', 'tcopter',
@@ -249,7 +251,7 @@ def unit_stats_editor(unit, name, com, power, funds, properties):
         case 'kindle':
             if power == 2:
                 unit['Av'] += 3 * properties
-            if unit['terr'] == 5:  # 5 is code for urban
+            if unit['terr'] == 5 or unit['terr'] == 6:  # 5 is code for urban, 6 is hq or lab
                 if power == 0:
                     unit['Av'] += 40
                 elif power == 1:
