@@ -49,19 +49,27 @@ def damage_calc_bounds(u1, u2):
 
 
 def compatible(u1, u2):
-    if u2['hidden']:
+    # can u1 fire on u2? return True/False
+
+    if u2['hidden']:  # hidden clause
         if u2['type'] == 'sub':
             if u1['type'] != 'cruiser' and u1['type'] != 'sub':  # cruisers or other subs
                 return False
         elif u2['type'] == 'stealth':
             if u1['type'] != 'fighter' and u1['type'] != 'stealth':  # fighters or other stealths
                 return False
-    if base_damage(u1['type'], u2['type'], 'AMMO' if u1['ammo'] == 0 else '') != 0 and u1['ammo'] >= 0:
-        return True
-    elif u1['ammo'] != 0:
-        if base_damage(u1['type'], u2['type'], 'AMMO') != 0:
-            return True
+
+    if base_damage(u1['type'], u2['type']) > 0:  # if base damage >0
+        if u1['ammo'] != 0:
+            return True  # base damage >0 and ammo isn't 0, it's fine to fire and also take 1 from ammo
+    # if u1['ammo'] >= 1:  # if the unit has ammo
+    if base_damage(u1['type'], u2['type'], 'AMMO') > 0:  # if base damage of noammo is positive
+            return True  # fire but don't use ammo
     return False
+    # tank on tank  # prim, -1ammo
+    # tanknoammo on tank  # sec, 0ammo
+    # tank on inf  # sec, 0ammo
+    # inf on inf  # prim, 0ammo
 
 
 def base_damage(type1, type2, ammo=''):  # default ammo is ok. if 'AMMO' is passed in, different calcs are done.

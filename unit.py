@@ -51,12 +51,10 @@ def unit_maker(army, typ, co, pos, stars=3, terr=5, hp=99,
         'hidden': False if hidden is None else hidden, 'loaded': [] if loaded is None else loaded,
         'capture': 0 if capture is None else capture
     }
-    return unit_stats_editor(unit, coname, co['com'], co['power'], co['funds'], co['properties'])
+    return unit_stats_editor(unit, coname, co['com'], co['power'], co['funds'])
 
 
-def unit_stats_editor(unit, name, com, power, funds, properties, fresh_power=None):
-    if fresh_power is not None:
-        fresh_power = False
+def unit_stats_editor(unit, name, com, power, funds):
     # all_unit_typ = [
     #     'aa', 'apc', 'arty', 'bcopter', 'bship', 'bboat', 'bbomb', 'bomber', 'carrier', 'cruiser', 'fighter', 'inf',
     #     'lander', 'med', 'mech', 'mega', 'missile', 'neo', 'pipe', 'recon', 'rocket', 'stealth', 'sub', 'tcopter',
@@ -79,6 +77,7 @@ def unit_stats_editor(unit, name, com, power, funds, properties, fresh_power=Non
     # luck
     # range
     # move
+    nomove = unit['move'] < 1
     # fuel
     # value
     # stars
@@ -95,15 +94,11 @@ def unit_stats_editor(unit, name, com, power, funds, properties, fresh_power=Non
                     unit['range'][-1] += 1
                 if veh:
                     unit['move'] += 2
-                if unit['terr'] == 4:  # 4 is code for plain
-                    unit['Av'] += 20 * power
-            elif unit['terr'] == 4:
-                unit['Av'] += 10
         case 'max':
             if indirect:
                 unit['range'][-1] -= 1
                 unit['Av'] -= 10
-            if not indirect and not (foot or transport):
+            elif not (foot or transport):
                 unit['Av'] += 20
                 unit['move'] += power  # hehe
                 if power == 1:
@@ -128,9 +123,6 @@ def unit_stats_editor(unit, name, com, power, funds, properties, fresh_power=Non
             unit['value'] = int(unit['value'] * 0.8)
             # I don't think I'll ever know how value rounding works but that's my guess!
             unit['Av'] -= 10
-            if power == 2:
-                unit['Av'] += int(3 * funds / 1000)
-            # I don't think I'll ever know how attack rounding works but that's my guess!
         case 'grit':
             if indirect:
                 unit['range'][-1] += 1 + power
@@ -249,24 +241,24 @@ def unit_stats_editor(unit, name, com, power, funds, properties, fresh_power=Non
                     unit['L'][0] -= 44
                     unit['L'][1] += 85
         case 'kindle':
-            if power == 2:
-                unit['Av'] += 3 * properties
-            if unit['terr'] == 5 or unit['terr'] == 6:  # 5 is code for urban, 6 is hq or lab
-                if power == 0:
-                    unit['Av'] += 40
-                elif power == 1:
-                    unit['Av'] += 80
-                else:
-                    unit['Av'] += 130
+            pass
+            # if power == 2:
+            #     unit['Av'] += 3 * properties
+            # if unit['terr'] == 5 or unit['terr'] == 6:  # 5 is code for urban, 6 is hq or lab
+            #     if power == 0:
+            #         unit['Av'] += 40
+            #     elif power == 1:
+            #         unit['Av'] += 80
+            #     else:
+            #         unit['Av'] += 130
         case 'koal':
             unit['move'] += power
-            if unit['terr'] == 3:  # 3 is code for road
-                unit['Av'] += 10 + 10 * power
         case 'lash':
-            if not air:
-                if power == 2:
-                    unit['Dtr'] *= 2
-                unit['Av'] += 10 * unit['Dtr']
+            pass
+            # if not air:
+            #     if power == 2:
+            #         unit['Dtr'] *= 2
+            #     unit['Av'] += 10 * unit['Dtr']
         case 'sturm':
             unit['Av'] -= 20
             unit['Dv'] += 20
@@ -277,6 +269,54 @@ def unit_stats_editor(unit, name, com, power, funds, properties, fresh_power=Non
     if power != 0:
         unit['Av'] += 10
         unit['Dv'] += 10
+
+    if nomove:
+        unit['move'] = 0  # don't accidentally give units 1 move if they have already moved but andy's SCOP goes off
+
+    return unit
+
+
+def unit_stats_fire(unit, co, before=True):
+    # special tiles (plain, road, urban) or funds/properties are calulated here
+    if before:
+        posneg = +1
+    else:
+        posneg = -1
+
+    air = unit['type'] in ['bcopter', 'bbomb', 'bomber', 'fighter', 'stealth', 'tcopter']
+    power = co['power']
+
+    match co['name']:
+        case 'jake':
+            if unit['terr'] == 4 and power != 0:  # 4 is code for plain
+                unit['Av'] += (20 * power) * posneg
+            elif unit['terr'] == 4:
+                unit['Av'] += 10 * posneg
+        case 'colin':
+            if power == 2:
+                unit['Av'] += int(3 * co['funds'] / 1000) * posneg
+                # I don't think I'll ever know how attack rounding works but that's my guess!
+        case 'kindle':
+            if power == 2:
+                unit['Av'] += (3 * co['properties']) * posneg
+            if unit['terr'] == 5 or unit['terr'] == 6:  # 5 is code for urban, 6 is hq or lab
+                if power == 0:
+                    unit['Av'] += 40 * posneg
+                elif power == 1:
+                    unit['Av'] += 80 * posneg
+                else:
+                    unit['Av'] += 130 * posneg
+        case 'koal':
+            if unit['terr'] == 3:  # 3 is code for road
+                unit['Av'] += (10 + 10 * power) * posneg
+        case 'lash':
+            if not air:
+                if power == 2:
+                    if posneg > 0:
+                        unit['Dtr'] *= 2
+                    else:
+                        unit['Dtr'] /= 2
+                unit['Av'] += (10 * unit['Dtr']) * posneg
 
     return unit
 

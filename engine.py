@@ -3,7 +3,7 @@ import numpy as np
 from pycparser.ply.yacc import LRTable
 
 from co import activate_or_deactivate_power, turn_resupplies, com_change
-from unit import unit_maker, unit_stats_editor
+from unit import unit_maker, unit_stats_editor, unit_stats_fire
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
 from pathfind import path_find
@@ -390,7 +390,8 @@ class Engine:
                         raise CustomError(f"{desired_to_target_dist} is out of range for unit with range {u1['range']}")
 
                     # distance checks are complete, now let's try unit attack checks
-                    if not compatible(u1, u2):
+                    compat1, ammo1 = compatible(u1, u2)
+                    if not compat1:
                         raise CustomError(f"attack not valid: {u1['type']} with ammo {u1['ammo']} on {u2['type']}")
                     counter = True
                     if u1['type'] in indr or u2['type'] in indr:
@@ -404,15 +405,12 @@ class Engine:
                     if u1['type'] in indr and javier:  # if being shot by indirect and javier owns enemy unit
                         u2['Dv'] += 80 if eSCOP else (40 if eCOP else 20)  # enemy javier (power) indirect defence
                     elif (kanbei and eSCOP) or (sonja and not eSCOP):  # sonja doesn't get 1.5x on SCOP right?
-                        u2['Av'] = int(u2['Av'] * 1.5)  # assume how this 1.5x damage works
-
+                        u2['Av'] = int(u2['Av'] * 1.5)
                     # make sure unit stats are up to date
-                    u1 = unit_stats_editor(u1, p1['name'], p1['com'], p1['power'], p1['funds'], p1['properties'], 0)
-                    u2 = unit_stats_editor(u2, p2['name'], p2['com'], p2['power'], p2['funds'], p2['properties'], 0)
-                    # todo this sucks im so angry im leaving ok bye
+                    u1 = unit_stats_fire(u1, p1, before=True)
 
                     if sonja and counter and eSCOP:
-                        u2, u1 = fire(u2, u1, counter, self.rng_seed)  # swap order
+                        u2, u1 = fire(u2, u1, counter, self.rng_seed)  # swap order for enemy sonja SCOP
                     else:
                         u1, u2 = fire(u1, u2, counter, self.rng_seed)
                     self.rng_seed += 1  # change rng in a consistent waY
@@ -420,11 +418,11 @@ class Engine:
                     # but you also can predict exactly what damage is done given a set seed and set move order (replays)
 
                     # reset weird CO buffs
+                    u1 = unit_stats_fire(u1, p1, before=False)
                     if u1['type'] in indr and javier:
                         u2['Dv'] -= 80 if eSCOP else (40 if eCOP else 20)
                     elif (kanbei and eSCOP) or (sonja and not eSCOP):
-                        u2['Av'] = int(u2['Av'] * 1.5)  # assume how this 1.5x damage works
-
+                        u2['Av'] = int(u2['Av'] * 1.5)
 
             case 'repair':
                 if target_pos is None:
@@ -451,7 +449,7 @@ class Engine:
                             self.p1['funds'] - int(u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10))
                     else:
                         self.p2['funds'] = int(
-                            self.p2['funds'] -  int(u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10))
+                            self.p2['funds'] - int(u2['value'] * (int(1 + u2['hp'] / 10) - display_hp2) / 10))
 
             case 'hide':
                 if u1['type'] in ['stealth', 'sub']:
