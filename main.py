@@ -1,10 +1,11 @@
 # from testing import unpack
-from GUI import GUI
-from aimain import test
+# from GUI import GUI
+# from aimain import test
+from XHKO import calc
 
 
 def main():
-    test()
+    calc()
 
 
 if __name__ == '__main__':
