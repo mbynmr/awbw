@@ -35,7 +35,10 @@ def calc():
         u2Dtr = [u2Dtr for _ in attacks]
     gl, bl = luck()
     hp_list = np.array([u2hp])
-    print(f'defender: {int(1 + u2hp / 10)}hp {u2Dv} defence {u2t} on {u2Dtr} star terrain')
+    print(f'defender: {int(1 + u2hp / 10)}hp'
+          f' {[e + 100 for e in u2Dv] if min(u2Dv) != max(u2Dv) else (min(u2Dv) + 100)} defence'
+          f' {u2t}'
+          f' on {u2Dtr if min(u2Dtr) != max(u2Dtr) else min(u2Dtr)}*')
 
     cum_ko = 0
     for i, a in enumerate(attacks):
@@ -109,7 +112,9 @@ def calc():
     plt.xlim(left=0)
     plt.ylim(bottom=0)
     plt.legend()
-    plt.title(f'{u2Dv} def {u2t} on {u2Dtr}*')
+    plt.title(f'{[e + 100 for e in u2Dv] if min(u2Dv) != max(u2Dv) else (min(u2Dv) + 100)} def'
+              f' {u2t}'
+              f' on {u2Dtr if min(u2Dtr) != max(u2Dtr) else min(u2Dtr)}*')
     plt.show()
 
 
