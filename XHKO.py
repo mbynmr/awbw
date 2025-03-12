@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+# from tqdm import tqdm
 
 from fire import base_damage
 
@@ -28,11 +28,15 @@ def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2health, good_luck, bad_luck):
 def calc():
     u2t, u2Dv, u2Dtr, u2hp, heals = defender()
     attacks = attackers()
+    gl, bl = luck()
     if type(u2Dv) is int:
         u2Dv = [u2Dv for _ in attacks]
     if type(u2Dtr) == int:
         u2Dtr = [u2Dtr for _ in attacks]
-    gl, bl = luck()
+    if type(gl) is int:
+        gl = [gl for _ in attacks]
+    if type(bl) is int:
+        bl = [bl for _ in attacks]
     hp_list = np.array([u2hp])
     print(f'defender: {int(1 + u2hp / 10)}hp'
           f' {[e + 100 for e in u2Dv] if u2Dv.count(u2Dv[0]) != len(u2Dv) else (u2Dv[0] + 100)} defence'
@@ -69,7 +73,10 @@ def calc():
         dmg_list = [[] for _ in range(10)]
         for j in range(10):  # generate damage spread for all 10 visible defender health
             # hp =  j * 10 + 5 # 5, 15, ... 95 with 10 total
-            dmg_list[j] = all_damage(base, a[1] + 100, a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl, bl)
+            dmg_list[j] = all_damage(base, a[1] + 100, a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl[i], bl[i])
+
+        # todo optimisation required. multiple hps that are the same can be skipped calcing but still added? idk.
+        # i silly
 
         for hp in old_hp_list:  # apply damage to every defender hp
             # if i == 1 and hp < 30:
@@ -96,10 +103,11 @@ def calc():
 
         print(f'attacker {i + 1}: {int(1 + a[2] / 10)}hp {a[1] + 100} attack {a[0]}')
 
+        # all done for this attacker! message and plot to follow, then next attacker
         if ko == 1:
             print(f'garantees {i + 1}HKO')
             if i == 0:
-                quit()
+                quit()  # don't wanna plot if 1 attacker garantees 1HKO
             break
         if cum_ko > 0:
             print(f'max possible health after attack: {np.amax(hp_list):.2g}')
@@ -109,9 +117,9 @@ def calc():
             print(f'number of alive cases: {len(hp_list)}')
         else:
             print(f'min possible health after attack: {np.amin(hp_list):.2g}')
-
         plt.plot(values, 100 * counts / np.sum(counts), '.',
                  label=f'{i + 1}: {int(1 + a[2] / 10)}hp {a[1]} {a[0]}')
+
     plt.xlabel('hp (-1 = dead)')
     plt.ylabel('% of results')
     plt.xlim(left=0)
@@ -140,17 +148,19 @@ def defender():
 def luck():
     # good_luck=10, bad_luck=0  # default 0 to 9
     # good_luck=10, bad_luck=10  # sonja default -9 to +9
+    # good_luck=25, bad_luck=10  # flak default -9 to +24
     # good_luck=30, bad_luck=15  # jugger default -14 to +29
-    good_luck = 10
-    bad_luck = 0
+    # good_luck = [10, 40, 40, 40]  # rachel activates COP after first attack to go from 0-9 to 0-39
+    good_luck = 25
+    bad_luck = 10
     return good_luck, bad_luck
 
 
 def attackers():  # don't do more than 7ish please. :>
     return [
-        ['tank', 10, 99],
-        ['inf', 10, 59],
-        ['inf', 10, 29],
+        ['inf', 20, 99],
+        ['inf', 20, 99],
+        ['inf', 20, 99],
         ['mega', 80, 99],
         # ['tank', 100, 29],
         # ['inf', 100, 99],
