@@ -8,7 +8,6 @@ from fire import base_damage
 def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2health, good_luck, bad_luck):
     good_luck = range(good_luck)
     bad_luck = range(bad_luck if bad_luck > 1 else 1)
-    # todo work with sonja luck?
     dmg_list = np.zeros([len(good_luck) * len(bad_luck)])
     i = 0
     for gl in good_luck:
@@ -36,7 +35,7 @@ def calc():
     gl, bl = luck()
     hp_list = np.array([u2hp])
     print(f'defender: {int(1 + u2hp / 10)}hp'
-          f' {[e + 100 for e in u2Dv] if min(u2Dv) != max(u2Dv) else (min(u2Dv) + 100)} defence'
+          f' {[e + 100 for e in u2Dv] if u2Dv.count(u2Dv[0]) != len(u2Dv) else (u2Dv[0] + 100)} defence'
           f' {u2t}'
           f' on {u2Dtr if min(u2Dtr) != max(u2Dtr) else min(u2Dtr)}*')
 
@@ -70,16 +69,22 @@ def calc():
         dmg_list = [[] for _ in range(10)]
         for j in range(10):  # generate damage spread for all 10 visible defender health
             # hp =  j * 10 + 5 # 5, 15, ... 95 with 10 total
-            dmg_list[j] = all_damage(base, a[1], a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl, bl)
+            dmg_list[j] = all_damage(base, a[1] + 100, a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl, bl)
 
         for hp in old_hp_list:  # apply damage to every defender hp
+            # if i == 1 and hp < 30:
+            #     continue  # todo this is one place where known hp could change the result :>
             if hp_list is None:
                 hp_list = hp - dmg_list[int(1 + hp / 10) - 1]
             else:
                 hp_list = np.concatenate([hp_list, hp - dmg_list[int(1 + hp / 10) - 1]])
 
+        # if i == 1:  # todo this is the other place where known hp could change the result :>
+        #     known_index = np.argwhere(hp_list < 20)
+        #     hp_list = np.delete(hp_list, known_index)
+
         ko_index = np.argwhere(hp_list < 0)
-        # hp_list[ko_index] = -1  # todo optional, changes how the plot looks
+        # hp_list[ko_index] = -1  # optional, changes how the plot looks. imo bad
         values, counts = np.unique(hp_list, return_counts=True)
 
         hp_list = np.delete(hp_list, ko_index)
@@ -89,7 +94,7 @@ def calc():
         ko = len(ko_index) / (len(hp_list) + len(ko_index))
         cum_ko = cum_ko + (1 - cum_ko) * ko
 
-        print(f'attacker {i + 1}: {int(1 + a[2] / 10)}hp {a[1]} attack {a[0]}')
+        print(f'attacker {i + 1}: {int(1 + a[2] / 10)}hp {a[1] + 100} attack {a[0]}')
 
         if ko == 1:
             print(f'garantees {i + 1}HKO')
@@ -112,7 +117,7 @@ def calc():
     plt.xlim(left=0)
     plt.ylim(bottom=0)
     plt.legend()
-    plt.title(f'{[e + 100 for e in u2Dv] if min(u2Dv) != max(u2Dv) else (min(u2Dv) + 100)} def'
+    plt.title(f'{[e + 100 for e in u2Dv] if u2Dv.count(u2Dv[0]) != len(u2Dv) else (u2Dv[0] + 100)} def'
               f' {u2t}'
               f' on {u2Dtr if min(u2Dtr) != max(u2Dtr) else min(u2Dtr)}*')
     plt.show()
@@ -124,9 +129,9 @@ def defender():
     # heals = {1: 'bboat', 2: 'property'}  # repair by bboat before attacker 1, sits on owned property before attacker 2
     u2t = 'inf'
     u2Dv = 0
-    # u2Dv = [0, 10, 10, 10]
-    # u2Dtr = 1
-    u2Dtr = [1, 1, 1, 1]
+    # u2Dv = [10, 10, 0, 0]
+    u2Dtr = 3
+    # u2Dtr = [2, 1, 1, 1]
     u2hp = 99  # 99 is full, 0 is alive, -1 is dead. This way hp = the 10s didget + 1, no confusion.
     heals = {-3: 'bboat', -2: 'property'}  # heals *before* attacker number x
     return u2t, u2Dv, u2Dtr, u2hp, heals  # u2t = str, u2hp = int(0-99), u2Dv & u2Dtr = int OR list of int, heals = dict
@@ -143,34 +148,29 @@ def luck():
 
 def attackers():  # don't do more than 7ish please. :>
     return [
-        ['inf', 100, 89],
-        ['inf', 100, 89],
-        ['mega', 999, 99],
+        ['tank', 10, 99],
+        ['inf', 10, 59],
+        ['inf', 10, 29],
+        ['mega', 80, 99],
         # ['tank', 100, 29],
-        # ['tank', 100, 99],
         # ['inf', 100, 99],
-        # ['inf', 100, 99],
-        # ['inf', 100, 99],
-        # ['inf', 100, 99],
-        # ['inf', 100, 99],
-        # ['tank', 100, 99],
     ]
-    # ['tank', 110, 99],  # full hp andy tank with 1 tower
-    # ['aa', 110, 99],
-    # ['inf', 120, 45],  # 2 towers 5hp
-    # ['inf', 120, 40],  # 5hp
+    # ['tank', 10, 99],  # full hp andy tank with 1 tower
+    # ['aa', 10, 99],
+    # ['inf', 20, 45],  # 2 towers 5hp
+    # ['inf', 20, 40],  # 5hp
 
     # imfamous minty game (target is my andy tank on road which I wanted to die for wallbreak. It healed to 6hp)
-    # ['inf', 110, 40],
-    # ['tank', 110, 99],
-    # ['tank', 120, 70],
+    # ['inf', 10, 40],
+    # ['tank', 10, 99],
+    # ['tank', 20, 70],
 
     # interesting profile attacking andy tank on road - alive cases go 10, 100, 28, (+2heal), 280, 2170, 3734, 924, 8, 0
-    # ['tank', 160, 99],
-    # ['inf', 100, 99],
-    # ['inf', 100, 99],
-    # ['inf', 100, 99],
-    # ['inf', 100, 99],
-    # ['inf', 100, 99],
-    # ['inf', 100, 99],
-    # ['inf', 100, 99],
+    # ['tank', 60, 99],
+    # ['inf', 0, 99],
+    # ['inf', 0, 99],
+    # ['inf', 0, 99],
+    # ['inf', 0, 99],
+    # ['inf', 0, 99],
+    # ['inf', 0, 99],
+    # ['inf', 0, 99],
