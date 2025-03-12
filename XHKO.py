@@ -5,7 +5,7 @@ from tqdm import tqdm
 from fire import base_damage
 
 
-def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2hp, good_luck, bad_luck):
+def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2health, good_luck, bad_luck):
     good_luck = range(good_luck)
     bad_luck = range(bad_luck if bad_luck > 1 else 1)
     # todo work with sonja luck?
@@ -21,18 +21,24 @@ def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2hp, good_luck, bad_luck):
             # # is rounded up to the nearest interval of 0.05 then rounded down to the nearest integer
             # out = int(np.round(damage * h * defence + 0.05, 5))  # (float precision needs a round before the int())
             dmg_list[i] = int(np.round(((base * u1Av / 100) + gl - bl) * (int(1 + u1hp / 10) / 10) *
-                                       (2 - (u2Dv + (u2Dtr * int(1 + u2hp / 10))) / 100) + 0.05, 5))
+                                       (2 - (u2Dv + (u2Dtr * int(1 + u2health / 10))) / 100) + 0.05, 5))
             i += 1
     return dmg_list
 
 
 def calc():
     u2t, u2Dv, u2Dtr, u2hp, heals = defender()
+    attacks = attackers()
+    if type(u2Dv) is int:
+        u2Dv = [u2Dv for _ in attacks]
+    if type(u2Dtr) == int:
+        u2Dtr = [u2Dtr for _ in attacks]
     gl, bl = luck()
     hp_list = np.array([u2hp])
+    print(f'defender: {int(1 + u2hp / 10)}hp {u2Dv} defence {u2t} on {u2Dtr} star terrain')
 
     cum_ko = 0
-    for i, a in enumerate(attackers()):
+    for i, a in enumerate(attacks):
         if i + 1 in heals:
             match heals[i + 1]:
                 case 'bboat':
@@ -59,20 +65,15 @@ def calc():
                 raise Exception(f"{a[0]} can't do damage to {u2t}")
 
         dmg_list = [[] for _ in range(10)]
-        for j in range(10):
-            hp = j * 10 + 5  # 5, 15, ... 95 with 10 total
-            dmg = all_damage(base, a[1], a[2], u2Dv, u2Dtr, hp, gl, bl)
-            dmg_list[j] = dmg
-        #     if hp_list is None:
-        #         hp_list = - dmg
-        #     hp_list = np.where(int(1 + old_hp_list / 10) == int(1 + hp / 10), hp_list - dmg, hp_list)
+        for j in range(10):  # generate damage spread for all 10 visible defender health
+            # hp =  j * 10 + 5 # 5, 15, ... 95 with 10 total
+            dmg_list[j] = all_damage(base, a[1], a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl, bl)
 
-        for hp in old_hp_list:
-            k = int(1 + hp / 10) - 1
+        for hp in old_hp_list:  # apply damage to every defender hp
             if hp_list is None:
-                hp_list = hp - dmg_list[k]
+                hp_list = hp - dmg_list[int(1 + hp / 10) - 1]
             else:
-                hp_list = np.concatenate([hp_list, hp - dmg_list[k]])
+                hp_list = np.concatenate([hp_list, hp - dmg_list[int(1 + hp / 10) - 1]])
 
         ko_index = np.argwhere(hp_list < 0)
         # hp_list[ko_index] = -1  # todo optional, changes how the plot looks
@@ -82,21 +83,21 @@ def calc():
         # if i == 0:
         #     hp_list = np.delete(hp_list, np.argwhere(hp_list > 9))  # todo WIP planning after hp is revealed
 
-        this_ko = len(ko_index)
-
-        ko = this_ko / (len(hp_list) + this_ko)
+        ko = len(ko_index) / (len(hp_list) + len(ko_index))
         cum_ko = cum_ko + (1 - cum_ko) * ko
 
         print(f'attacker {i + 1}: {int(1 + a[2] / 10)}hp {a[1]} attack {a[0]}')
 
         if ko == 1:
-            print(f'garantees KO')
+            print(f'garantees {i + 1}HKO')
+            if i == 0:
+                quit()
             break
         if cum_ko > 0:
             print(f'max possible health after attack: {np.amax(hp_list):.2g}')
             print(f'KO: {ko * 100:.10g}%')
             if ko != cum_ko:
-                print(f'cumulative KO: {cum_ko * 100:.10g}%')
+                print(f'cumulative {i + 1}HKO: {cum_ko * 100:.10g}%')
             print(f'number of alive cases: {len(hp_list)}')
         else:
             print(f'min possible health after attack: {np.amin(hp_list):.2g}')
@@ -106,21 +107,24 @@ def calc():
     plt.xlabel('hp (-1 = dead)')
     plt.ylabel('% of results')
     plt.xlim(left=0)
+    plt.ylim(bottom=0)
     plt.legend()
-    plt.title(f'{u2Dv - 100} def {u2t} on {u2Dtr}*')
+    plt.title(f'{u2Dv} def {u2t} on {u2Dtr}*')
     plt.show()
 
 
 def defender():
-    # u2Dv = 110  # vb defence
-    # u2Dtr = 3  # city
+    # u2Dv = 0 # -20=grimm, +10=COP
+    # u2Dtr = [3, 0, 0, 0]  # city for attacker 1, roads for future attackers
     # heals = {1: 'bboat', 2: 'property'}  # repair by bboat before attacker 1, sits on owned property before attacker 2
-    u2t = 'mega'
-    u2Dv = 110
-    u2Dtr = 0
+    u2t = 'inf'
+    u2Dv = 0
+    # u2Dv = [0, 10, 10, 10]
+    # u2Dtr = 1
+    u2Dtr = [1, 1, 1, 1]
     u2hp = 99  # 99 is full, 0 is alive, -1 is dead. This way hp = the 10s didget + 1, no confusion.
-    heals = {3: 'property'}  # heals *before* attacker number x
-    return u2t, u2Dv, u2Dtr, u2hp, heals
+    heals = {-3: 'bboat', -2: 'property'}  # heals *before* attacker number x
+    return u2t, u2Dv, u2Dtr, u2hp, heals  # u2t = str, u2hp = int(0-99), u2Dv & u2Dtr = int OR list of int, heals = dict
 
 
 def luck():
@@ -134,21 +138,17 @@ def luck():
 
 def attackers():  # don't do more than 7ish please. :>
     return [
-        ['mega', 100, 99],
-        ['neo', 100, 99],
-        ['med', 100, 99],
-        ['aa', 100, 99],
-        ['aa', 100, 99],
-        ['inf', 100, 99],
-        ['inf', 100, 99],
-        ['inf', 100, 99],
-        ['inf', 100, 99],
-        ['inf', 100, 99],
-        ['inf', 100, 99],
-        ['inf', 100, 99],
-        ['inf', 100, 99],
+        ['inf', 100, 89],
+        ['inf', 100, 89],
+        ['mega', 999, 99],
+        # ['tank', 100, 29],
+        # ['tank', 100, 99],
         # ['inf', 100, 99],
         # ['inf', 100, 99],
+        # ['inf', 100, 99],
+        # ['inf', 100, 99],
+        # ['inf', 100, 99],
+        # ['tank', 100, 99],
     ]
     # ['tank', 110, 99],  # full hp andy tank with 1 tower
     # ['aa', 110, 99],
