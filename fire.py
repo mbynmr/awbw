@@ -31,7 +31,7 @@ def damage_calc(u1, u2, rng_seed):
     # is rounded up to the nearest interval of 0.05 then rounded down to the nearest integer
     # (float precision needs a round before the int())
     out = int(np.round(damage * hp * defence + 0.05, 5))
-    return out if out >= 0 else 0, ammo
+    return out if out >= 0 else 0, ammo  # can handle bad luck by cutting off all negatives and setting = 0
 
 
 def damage_calc_bounds(u1, u2):

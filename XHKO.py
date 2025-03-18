@@ -19,8 +19,15 @@ def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2health, good_luck, bad_luck):
             #
             # # is rounded up to the nearest interval of 0.05 then rounded down to the nearest integer
             # out = int(np.round(damage * h * defence + 0.05, 5))  # (float precision needs a round before the int())
-            dmg_list[i] = int(np.round(((base * u1Av / 100) + gl - bl) * (int(1 + u1hp / 10) / 10) *
-                                       (2 - (u2Dv + (u2Dtr * int(1 + u2health / 10))) / 100) + 0.05, 5))
+            # noinspection PyTypeChecker
+            dmg_list[i] = int(np.round(
+                ((base * u1Av / 100) + gl - bl)  # attacker damage
+                * (int(1 + u1hp / 10) / 10)  # attacker hp multiplier
+                * (2 - (u2Dv + (u2Dtr * int(1 + u2health / 10))) / 100)  # defender defence
+                + 0.05, 5  # rounding according to awbw formula
+            ))
+            if dmg_list[i] < 0:
+                dmg_list[i] = 0
             i += 1
     return dmg_list
 
@@ -29,6 +36,7 @@ def calc():
     u2t, u2Dv, u2Dtr, u2hp, heals = defender()
     attacks = attackers()
     gl, bl = luck()
+    known_hp_dict = known_hp()
     if type(u2Dv) is int:
         u2Dv = [u2Dv for _ in attacks]
     if type(u2Dtr) == int:
@@ -58,6 +66,8 @@ def calc():
         else:
             repair = 0
 
+        print(f'attacker {i + 1}: {int(1 + a[2] / 10)}hp {a[1] + 100} attack {a[0]}')
+
         if repair > 0:
             old_hp_list = np.where(hp_list + repair >= 90, 99, hp_list + repair)  # in case silly me is silly
         else:
@@ -73,35 +83,47 @@ def calc():
         dmg_list = [[] for _ in range(10)]
         for j in range(10):  # generate damage spread for all 10 visible defender health
             # hp =  j * 10 + 5 # 5, 15, ... 95 with 10 total
+            # noinspection PyTypeChecker
             dmg_list[j] = all_damage(base, a[1] + 100, a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl[i], bl[i])
 
         # todo optimisation required. multiple hps that are the same can be skipped calcing but still added? idk.
         # i silly
 
+        # noinspection PyTypeChecker
         for hp in old_hp_list:  # apply damage to every defender hp
-            # if i == 1 and hp < 30:
-            #     continue  # todo this is one place where known hp could change the result :>
             if hp_list is None:
-                hp_list = hp - dmg_list[int(1 + hp / 10) - 1]
+                hp_list = np.array(hp - dmg_list[int(1 + hp / 10) - 1])
             else:
                 hp_list = np.concatenate([hp_list, hp - dmg_list[int(1 + hp / 10) - 1]])
 
-        # if i == 1:  # todo this is the other place where known hp could change the result :>
-        #     known_index = np.argwhere(hp_list < 20)
-        #     hp_list = np.delete(hp_list, known_index)
+        if i + 1 in known_hp_dict:
+            set_hp = known_hp_dict[i + 1]
+            # noinspection PyTypeChecker
+            hpll = len(hp_list)
+            hp_list = np.where(hp_list <= (set_hp * 10) - 1, hp_list, 100)
+            hp_list = np.where((set_hp - 1) * 10 <= hp_list, hp_list, 100)
+            hp_list = np.delete(hp_list, np.argwhere(hp_list == 100))
+            # noinspection PyTypeChecker
+            if len(hp_list) == 0:
+                print(f'known hp after attack {i + 1} of {set_hp}hp is not possible.')
+                quit()
+            # noinspection PyTypeChecker
+            if hpll - len(hp_list) != 0:
+                # noinspection PyTypeChecker
+                print(f'known hp after attack {i + 1}: {set_hp}hp so culling {100 * (hpll - len(hp_list)) / hpll:.3g}%')
+            if cum_ko != 0:
+                print('resetting cumulative KO to 0')
+                cum_ko = 0  # resetting cumulative ko since we only care about cases from here on
 
         ko_index = np.argwhere(hp_list < 0)
         # hp_list[ko_index] = -1  # optional, changes how the plot looks. imo bad
         values, counts = np.unique(hp_list, return_counts=True)
 
         hp_list = np.delete(hp_list, ko_index)
-        # if i == 0:
-        #     hp_list = np.delete(hp_list, np.argwhere(hp_list > 9))  # todo WIP planning after hp is revealed
 
+        # noinspection PyTypeChecker
         ko = len(ko_index) / (len(hp_list) + len(ko_index))
         cum_ko = cum_ko + (1 - cum_ko) * ko
-
-        print(f'attacker {i + 1}: {int(1 + a[2] / 10)}hp {a[1] + 100} attack {a[0]}')
 
         # all done for this attacker! message and plot to follow, then next attacker
         if ko == 1:
@@ -114,6 +136,7 @@ def calc():
             print(f'KO: {ko * 100:.10g}%')
             if ko != cum_ko:
                 print(f'cumulative {i + 1}HKO: {cum_ko * 100:.10g}%')
+            # noinspection PyTypeChecker
             print(f'number of alive cases: {len(hp_list)}')
         else:
             print(f'min possible health after attack: {np.amin(hp_list):.2g}')
@@ -124,6 +147,7 @@ def calc():
     plt.ylabel('% of results')
     plt.xlim(left=0)
     plt.ylim(bottom=0)
+    # plt.ylim(top=30)
     plt.legend()
     plt.title(f'{[e + 100 for e in u2Dv] if u2Dv.count(u2Dv[0]) != len(u2Dv) else (u2Dv[0] + 100)} def'
               f' {u2t}'
@@ -136,10 +160,10 @@ def defender():
     # u2Dtr = [3, 0, 0, 0]  # city for attacker 1, roads for future attackers
     # heals = {1: 'bboat', 2: 'property'}  # repair by bboat before attacker 1, sits on owned property before attacker 2
     u2t = 'inf'
-    u2Dv = 0
-    # u2Dv = [10, 10, 0, 0]
+    u2Dv = -20
+    # u2Dv = [10, 10, 20, 20]
     u2Dtr = 3
-    # u2Dtr = [2, 1, 1, 1]
+    # u2Dtr = [3, 0, 0, 0]
     u2hp = 99  # 99 is full, 0 is alive, -1 is dead. This way hp = the 10s didget + 1, no confusion.
     heals = {-3: 'bboat', -2: 'property'}  # heals *before* attacker number x
     return u2t, u2Dv, u2Dtr, u2hp, heals  # u2t = str, u2hp = int(0-99), u2Dv & u2Dtr = int OR list of int, heals = dict
@@ -150,20 +174,32 @@ def luck():
     # good_luck=10, bad_luck=10  # sonja default -9 to +9
     # good_luck=25, bad_luck=10  # flak default -9 to +24
     # good_luck=30, bad_luck=15  # jugger default -14 to +29
-    # good_luck = [10, 40, 40, 40]  # rachel activates COP after first attack to go from 0-9 to 0-39
-    good_luck = 25
-    bad_luck = 10
+    # good_luck = [10, 40, 40, 40]  # rachel activates COP after first attack so gd luck goes from 9 to 39
+    good_luck = 10
+    bad_luck = 0
     return good_luck, bad_luck
 
 
-def attackers():  # don't do more than 7ish please. :>
+def known_hp():
+    # hp is known *after* attack n. for example {1: 5} means after attacker 1, hp was set to 5
+    # this removes all results that don't align to this hp and resets the cumulative KO to only count attack 2 onward
+    return {-2: 6, -1: 8}
+
+
+def attackers():
     return [
-        ['inf', 20, 99],
-        ['inf', 20, 99],
-        ['inf', 20, 99],
-        ['mega', 80, 99],
-        # ['tank', 100, 29],
-        # ['inf', 100, 99],
+        ['inf', 0, 39],
+        ['tank', 0, 99],
+        # ['tank', 10, 79],
+        # ['tank', 20, 39],
+        # ['tank', 30, 99],
+        # ['tank', -10, 19],
+        # ['inf', -10, 19],
+        # ['tank', 10, 69],
+        # ['aa', 20, 59],
+        # ['mega', 80, 99],
+        # ['tank', 0, 29],
+        # ['inf', 0, 99],
     ]
     # ['tank', 10, 99],  # full hp andy tank with 1 tower
     # ['aa', 10, 99],
@@ -184,3 +220,13 @@ def attackers():  # don't do more than 7ish please. :>
     # ['inf', 0, 99],
     # ['inf', 0, 99],
     # ['inf', 0, 99],
+
+    # wallbreak that could have been done to me but my opponent resigned instead.
+    # defender is my vb inf on city, heal 2 between recon and first inf attack.
+    # https://awbw.amarriner.com/game.php?games_id=1381781&ndx=16
+    # SCRATCH THAT im braindeath. the 2hp couldn't reach so it was unbreakable but needed calc to prove it
+    # (best case scenario for a LL wall :D waste time AND be inpenetrable or bait them in with it looking breakable-ish)
+    # ['recon', 10, 99],
+    # ['inf', 10, 39],
+    # ['inf', 10, 19],
+    # ['tank', 10, 69],
