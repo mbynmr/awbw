@@ -25,11 +25,15 @@ def damage_calc(u1, u2, rng_seed):
             base = base_damage(u1['type'], u2['type'], 'AMMO')
             ammo = False
     np.random.seed(int(rng_seed))
-    damage = base * u1['Av'] / 100 + np.random.choice(u1['L'][1] + u1['L'][0]) - u1['L'][0]  # attack value
-    hp = int(1 + u1['hp'] / 10) / 10  # hp 'out of 10' divided by 10: full unit is 1x damage, half hp is 0.5x
-    defence = 2 - (u2['Dv'] + (u2['Dtr'] * int(1 + u2['hp'] / 10))) / 100  # defence multiplier
+    # attack value
+    damage = base * u1['Av'] / 100 + np.random.choice(u1['L'][1] + u1['L'][0]) - u1['L'][0]
+    # hp 'out of 10' divided by 10: full unit is 1x damage, half hp is 0.5x
+    hp = int(1 + u1['hp'] / 10) / 10
+    # defence multiplier
+    defence = 2 - (u2['Dv'] + ((u2['Dtr'] if u2['tread'] != 'air' else 0) * int(1 + u2['hp'] / 10))) / 100
     # is rounded up to the nearest interval of 0.05 then rounded down to the nearest integer
     # (float precision needs a round before the int())
+    # noinspection PyTypeChecker
     out = int(np.round(damage * hp * defence + 0.05, 5))
     return out if out >= 0 else 0, ammo  # can handle bad luck by cutting off all negatives and setting = 0
 
@@ -44,7 +48,8 @@ def damage_calc_bounds(u1, u2):
     damageL = base * u1['Av'] / 100 + u1['L'][0]
     damageU = base * u1['Av'] / 100 + u1['L'][1]
     hp = int(1 + u1['hp'] / 10) / 10
-    defence = 2 - (u2['Dv'] + (u2['Dtr'] * int(1 + u2['hp'] / 10))) / 100
+    defence = 2 - (u2['Dv'] + ((u2['Dtr'] if u2['tread'] != 'air' else 0) * int(1 + u2['hp'] / 10))) / 100
+    # noinspection PyTypeChecker
     return int(np.round(damageL * hp * defence + 0.05, 5)), int(np.round(damageU * hp * defence + 0.05, 5)), ammo
 
 
@@ -64,7 +69,7 @@ def compatible(u1, u2):
             return True  # base damage >0 and ammo isn't 0, it's fine to fire and also take 1 from ammo
     # if u1['ammo'] >= 1:  # if the unit has ammo
     if base_damage(u1['type'], u2['type'], 'AMMO') > 0:  # if base damage of noammo is positive
-            return True  # fire but don't use ammo
+        return True  # fire but don't use ammo
     return False
     # tank on tank  # prim, -1ammo
     # tanknoammo on tank  # sec, 0ammo

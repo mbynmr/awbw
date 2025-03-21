@@ -215,7 +215,6 @@ class Engine:
             ecopower = self.p1['power']
             self.action_do(self.p2, self.p1, u1, pos, desired_pos, desired_action, target_pos)#
 
-
     def action_do(self, p1, p2, u1, pos, desired_pos, desired_action, target_pos=None):
         if u1['army'] != p1['army']:
             raise CustomError("selected unit is not owned by the player who's turn it is!")
@@ -243,7 +242,7 @@ class Engine:
 
         types = {
             'aa': [9, 60],
-            'apc': [0, 60],
+            'apc': [0, 60],  # todo apc is 0 but bboat is -1? bbomb? inf? recon? fix this?
             'arty': [9, 50],
             'bcopter': [6, 99],
             'bship': [9, 99],
