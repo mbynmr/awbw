@@ -2,9 +2,9 @@ import numpy as np
 import tcod as tc
 
 
-def path_find(map, start, end=None):
-    graph = tc.path.CustomGraph(map.shape)
-    cost = np.array(map, dtype=np.int8)
+def path_find(grid, start, end=None):
+    graph = tc.path.CustomGraph(grid.shape)
+    cost = np.array(grid, dtype=np.int8)
     CARDINAL = [
         [0, 1, 0],
         [1, 0, 1],
