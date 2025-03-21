@@ -1,9 +1,7 @@
-import time
 import numpy as np
-from pycparser.ply.yacc import LRTable
 
 from co import activate_or_deactivate_power, turn_resupplies, com_change
-from unit import unit_maker, unit_stats_editor, unit_stats_fire
+from unit import unit_maker, unit_stats_fire  # , unit_stats_editor
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
 from pathfind import path_find
@@ -242,11 +240,11 @@ class Engine:
 
         types = {
             'aa': [9, 60],
-            'apc': [0, 60],  # todo apc is 0 but bboat is -1? bbomb? inf? recon? fix this?
+            'apc': [0, 60],
             'arty': [9, 50],
             'bcopter': [6, 99],
             'bship': [9, 99],
-            'bboat': [-1, 50],
+            'bboat': [0, 50],
             'bbomb': [0, 45],
             'bomber': [9, 99],
             'carrier': [9, 99],
@@ -611,7 +609,7 @@ class Engine:
         if check:
             raise CustomError("no unit to unload")
         if abs((pos[0] - target_pos[0]) + (pos[1] - target_pos[1])) != 1:
-            raise CustomError("unload tile is not adjacent to carrier")
+            raise CustomError("unload tile is not adjacent to carrier")  # check if target_pos is within map bounds?
         ul['position'] = target_pos
         types = {
             'aa': [9, 60],
@@ -619,7 +617,7 @@ class Engine:
             'arty': [9, 50],
             'bcopter': [6, 99],
             'bship': [9, 99],
-            'bboat': [-1, 50],
+            'bboat': [0, 50],
             'bbomb': [0, 45],
             'bomber': [9, 99],
             'carrier': [9, 99],

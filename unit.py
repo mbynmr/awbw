@@ -160,7 +160,7 @@ def unit_stats_editor(unit, name, com, power, funds):
                         'arty': [9, 50],
                         'bcopter': [6, 99],
                         'bship': [9, 99],
-                        'bboat': [-1, 50],
+                        'bboat': [0, 50],
                         'bbomb': [0, 45],
                         'bomber': [9, 99],
                         'carrier': [9, 99],

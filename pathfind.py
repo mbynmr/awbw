@@ -10,9 +10,10 @@ def path_find(grid, start, end=None):
         [1, 0, 1],
         [0, 1, 0],
     ]
+    # noinspection PyTypeChecker
     graph.add_edges(edge_map=CARDINAL, cost=cost)
     pf = tc.path.Pathfinder(graph)
-    pf.add_root(start)  # set cost of root to 0? probably not right?
+    pf.add_root(start)
     if end is None:
         pf.resolve()
         return pf.distance
