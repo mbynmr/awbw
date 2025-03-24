@@ -4,7 +4,7 @@ from co import activate_or_deactivate_power, turn_resupplies, com_change
 from unit import unit_maker, unit_stats_fire  # , unit_stats_editor
 from map import load_map
 from fire import fire, compatible, damage_calc_bounds
-from pathfind import path_find
+from pathfind import check_movement
 from customerrors import CustomError
 
 
@@ -115,6 +115,7 @@ class Engine:
             raise CustomError("oh no big bad, crash crash crash")
 
     def check_movement(self, u, pos1, pos2=None):
+        access = self.map_info[4]
         # returns: movecost (0-11 (fighter with +2 move) is possible, -1 is impossible)
         # todo sturm, lash SCOP, snow, rain affect this function
 
@@ -122,75 +123,13 @@ class Engine:
             if pos1 == pos2:  # save some time with this return
                 return 0
 
-        access = self.map_info[4]
-        # 0: road, 1: plain, 2: wood, 3: river, 4: shoal, 5: sea, 6: pipe, 7: port, 8: base, 9: mountain, 10: reef
-        grid = np.zeros_like(access)
-        # special = self.map_info[5]
-        # # special - 0: misc, 1: pipeseam, 2: missile, 3: road, 4: plain, 5: urban, 6: lab&hq
-        match u['tread']:
-            case 'treads':
-                grid = np.where(access == 0, 1, 12)  # road
-                grid = np.where(access == 1, 1, grid)  # plain
-                grid = np.where(access == 2, 2, grid)  # wood
-                grid = np.where(access == 4, 1, grid)  # shoal
-                grid = np.where(access == 7, 1, grid)  # port
-                grid = np.where(access == 8, 1, grid)  # base
-            case 'air':
-                grid = np.where(access != 6, 1, 12)  # just not pipe :>
-            case 'sea':
-                grid = np.where(access == 5, 1, 12)
-                grid = np.where(access == 10, 2, grid)
-            case 'lander':
-                grid = np.where(access == 5, 1, 12)
-                grid = np.where(access == 10, 2, grid)
-                grid = np.where(access == 4, 1, grid)
-            case 'inf':
-                grid = np.where(access == 0, 1, 12)
-                grid = np.where(access == 1, 1, grid)
-                grid = np.where(access == 2, 1, grid)
-                grid = np.where(access == 3, 2, grid)  # river
-                grid = np.where(access == 4, 1, grid)
-                grid = np.where(access == 7, 1, grid)
-                grid = np.where(access == 8, 1, grid)
-                grid = np.where(access == 9, 2, grid)  # mtn
-            case 'mech':
-                grid = np.where(access == 0, 1, 12)
-                grid = np.where(access == 1, 1, grid)
-                grid = np.where(access == 2, 1, grid)
-                grid = np.where(access == 3, 1, grid)
-                grid = np.where(access == 4, 1, grid)
-                grid = np.where(access == 7, 1, grid)
-                grid = np.where(access == 8, 1, grid)
-                grid = np.where(access == 9, 1, grid)
-            case 'tyre':
-                grid = np.where(access == 0, 1, 12)
-                grid = np.where(access == 1, 2, grid)
-                grid = np.where(access == 2, 3, grid)
-                grid = np.where(access == 4, 1, grid)
-                grid = np.where(access == 7, 1, grid)
-                grid = np.where(access == 8, 1, grid)
-            case 'pipe':
-                grid = np.where(access == 6, 1, 12)
-
         if u['army'] == self.p1['army']:
             enemy_units = self.p2['units']
         else:
             enemy_units = self.p1['units']
-        # add enemy units as blockers
-        for enemy_unit in enemy_units:
-            if enemy_unit['position'][0] != -10:
-                grid[enemy_unit['position']] = 12
 
-        if pos2 is None:
-            all_costs = path_find(grid, pos1)  # evaluate costs of the whole grid from start position
-            all_costs = np.where(all_costs <= u['move'], all_costs, 100)
-            return np.argwhere(all_costs <= u['fuel'])  # return indexes where movement is allowed to
-        movecost = path_find(grid, pos1, pos2)
-        if movecost > u['move']:  # costs too much movement so it is impossible
-            return -2
-        elif movecost > u['fuel']:
-            return -3
-        return movecost
+        return check_movement(access, enemy_units, u['tread'], u['move'], u['fuel'], pos1, pos2)
+
 
     def action(self, pos, desired_pos, desired_action, target_pos=None):
         if pos[0] == -10:
@@ -199,18 +138,18 @@ class Engine:
         if u1 is None:
             raise CustomError(f"somehow no unit is at position {pos} to make the move")
         elif self.turns % 2 == 0:  # even turn means p1 turn
-            coname = self.p1['name']
-            econame = self.p2['name']
-            coarmy = self.p1['army']
-            copower = self.p1['power']
-            ecopower = self.p2['power']
+            # coname = self.p1['name']
+            # econame = self.p2['name']
+            # coarmy = self.p1['army']
+            # copower = self.p1['power']
+            # ecopower = self.p2['power']
             self.action_do(self.p1, self.p2, u1, pos, desired_pos, desired_action, target_pos)
         else:  # odd turn means p2 turn
-            coname = self.p2['name']
-            econame = self.p1['name']
-            coarmy = self.p2['army']
-            copower = self.p2['power']
-            ecopower = self.p1['power']
+            # coname = self.p2['name']
+            # econame = self.p1['name']
+            # coarmy = self.p2['army']
+            # copower = self.p2['power']
+            # ecopower = self.p1['power']
             self.action_do(self.p2, self.p1, u1, pos, desired_pos, desired_action, target_pos)#
 
     def action_do(self, p1, p2, u1, pos, desired_pos, desired_action, target_pos=None):

@@ -160,7 +160,7 @@ def defender():
     # u2Dtr = [3, 0, 0, 0]  # city for attacker 1, roads for future attackers
     # heals = {1: 'bboat', 2: 'property'}  # repair by bboat before attacker 1, sits on owned property before attacker 2
     u2t = 'inf'
-    u2Dv = -20
+    u2Dv = 0
     # u2Dv = [10, 10, 20, 20]
     u2Dtr = 3
     # u2Dtr = [3, 0, 0, 0]
@@ -183,21 +183,13 @@ def luck():
 def known_hp():
     # hp is known *after* attack n. for example {1: 5} means after attacker 1, hp was set to 5
     # this removes all results that don't align to this hp and resets the cumulative KO to only count attack 2 onward
-    return {-2: 6, -1: 8}
+    return {-2: 6, 1: 4}
 
 
 def attackers():
     return [
-        ['inf', 0, 39],
-        ['tank', 0, 99],
-        # ['tank', 10, 79],
-        # ['tank', 20, 39],
-        # ['tank', 30, 99],
-        # ['tank', -10, 19],
-        # ['inf', -10, 19],
-        # ['tank', 10, 69],
-        # ['aa', 20, 59],
-        # ['mega', 80, 99],
+        ['tank', 10, 99],
+        ['tank', 10, 49],
         # ['tank', 0, 29],
         # ['inf', 0, 99],
     ]
