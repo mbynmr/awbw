@@ -128,13 +128,15 @@ def base_damage(type1, type2, ammo=''):  # default ammo is ok. if 'AMMO' is pass
 
 
 def base_damage_ints(type1, type2, ammo):  # default to unit having ammo. if ammo value <= 0
-    if ammo <= 0:  # if unit isn't shooting with primary ammo (ran out or is transport)
+    if type1 == 11:  # inf
+        return [5, 12, 15, 7, 0, 0, 0, 0, 0, 0, 0, 55, 0, 1, 45, 1, 25, 1, 5, 12, 25, 0, 0, 30, 5][type2]
+    elif ammo <= 0:  # if unit isn't shooting with primary ammo (ran out or is transport)
         if type1 in [3, 9, 13, 14, 15, 17, 24]:  # bcopter, cruiser, med, mech, mega, neo, tank
-            if type1 == 24:
+            if type1 == 24:  # tank
                 return [5, 54, 45, 10, 0, 0, 0, 0, 0, 0, 0, 75, 0, 1, 70, 1, 30, 1, 6, 40, 55, 0, 0, 40, 6][type2]
-            elif type1 == 3:
+            elif type1 == 3:  # bcopter
                 return [6, 20, 25, 65, 0, 0, 0, 0, 0, 0, 0, 75, 0, 1, 75, 1, 35, 1, 6, 30, 35, 0, 0, 95, 6][type2]
-            elif type1 == 9:
+            elif type1 == 9:  # cruiser
                 return [0, 0, 0, 115, 0, 0, 120, 65, 0, 0, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 115, 0][type2]
             else:
                 return [
@@ -150,8 +152,6 @@ def base_damage_ints(type1, type2, ammo):  # default to unit having ammo. if amm
             # a return of 0 means this attack is invalid, which is also the case sometimes for other units.
             # stealth & pipe can never return 0 apart from in this clause
             return 0
-    elif type1 == 11:  # inf
-        return [5, 12, 15, 7, 0, 0, 0, 0, 0, 0, 0, 55, 0, 1, 45, 1, 25, 1, 5, 12, 25, 0, 0, 30, 5][type2]  # inf
     elif type1 == 24:  # tank
         return [65, 75, 70, 0, 1, 10, 0, 0, 1, 5, 0, 0, 10, 15, 0, 10, 85, 15, 55, 85, 85, 0, 1, 0, 55][type2]
     elif type1 < 5:
