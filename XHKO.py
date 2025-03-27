@@ -187,7 +187,6 @@ def calc():
     tally[u2hp] = 1  # set initial hp (might not be 99 ig)
     ko = 0
     old_ko = 0
-    cum_ko = 0
 
     for i, a in enumerate(attacks):
         if i + 1 in heals:
@@ -267,20 +266,19 @@ def calc():
             #     cum_ko = 0  # resetting cumulative ko since we only care about cases from here on
 
         this_ko = ko - old_ko
-        cum_ko = cum_ko + (1 - cum_ko) * this_ko  # todo adapt this formula
         old_ko = ko
 
         # all done for this attacker! message and plot to follow, then next attacker
-        if this_ko == 1:
+        if np.sum(tally) == 0:
             print(f'garantees {i + 1}HKO')
             if i == 0:
                 quit()  # don't wanna plot if 1 attacker garantees 1HKO
             break
-        if cum_ko > 0:
+        if ko > 0:
             print(f'max possible health after attack: {np.amax(plot_hp[np.argwhere(tally > 0)]):.2g}')
-            print(f'KO: {this_ko * 100:.10g}%')
-            if this_ko != cum_ko:
-                print(f'cumulative {i + 1}HKO: {cum_ko * 100:.10g}%')
+            print(f'KO: {100 * this_ko / (this_ko + np.sum(tally)):.10g}%')
+            if this_ko != ko:
+                print(f'cumulative {i + 1}HKO: {100 * ko / (ko + np.sum(tally)):.10g}%')
             print(f'number of alive cases: {np.sum(tally)}. number of dead cases: {ko}')
         else:
             print(f'min possible health after attack: {np.amin(plot_hp[np.argwhere(tally > 0)]):.2g}')
@@ -333,7 +331,7 @@ def known_hp():
 def attackers():
     return [
         ['arty', 20, 99],
-        # ['inf', 20, 99],
+        ['inf', 20, 99],
         # ['inf', 0, 99],
     ]
     # ['tank', 10, 99],  # full hp andy tank with 1 tower
