@@ -19,7 +19,6 @@ def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2health, good_luck, bad_luck):
             #
             # # is rounded up to the nearest interval of 0.05 then rounded down to the nearest integer
             # out = int(np.round(damage * h * defence + 0.05, 5))  # (float precision needs a round before the int())
-            # noinspection PyTypeChecker
             dmg_list[i] = int(np.round(
                 ((base * u1Av / 100) + gl - bl)  # attacker damage
                 * (int(1 + u1hp / 10) / 10)  # attacker hp multiplier
@@ -87,7 +86,6 @@ def calc_cases():
         dmg_list = [[] for _ in range(10)]
         for j in range(10):  # generate damage spread for all 10 visible defender health
             # hp =  j * 10 + 5 # 5, 15, ... 95 with 10 total
-            # noinspection PyTypeChecker
             dmg_list[j] = all_damage(base, a[1] + 100, a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl[i], bl[i])
 
         # todo optimisation required. multiple hps that are the same can be skipped calcing but still added? idk.
@@ -96,7 +94,6 @@ def calc_cases():
         if min(dmg_list[0]) > min(old_hp_list):
             hp_list = np.array([-1])
         else:
-            # noinspection PyTypeChecker
             for hp in tqdm(old_hp_list):  # apply damage to every defender hp
                 if hp_list is None:
                     hp_list = np.array(hp - dmg_list[int(1 + hp / 10) - 1])
@@ -105,18 +102,14 @@ def calc_cases():
 
             if i + 1 in known_hp_dict:
                 set_hp = known_hp_dict[i + 1]
-                # noinspection PyTypeChecker
                 hpll = len(hp_list)
                 hp_list = np.where(hp_list <= (set_hp * 10) - 1, hp_list, 100)
                 hp_list = np.where((set_hp - 1) * 10 <= hp_list, hp_list, 100)
                 hp_list = np.delete(hp_list, np.argwhere(hp_list == 100))
-                # noinspection PyTypeChecker
                 if len(hp_list) == 0:
                     print(f'known hp after attack {i + 1} of {set_hp}hp is not possible.')
                     quit()
-                # noinspection PyTypeChecker
                 if hpll - len(hp_list) != 0:
-                    # noinspection PyTypeChecker
                     print(f'known hp after attack {i + 1}: {set_hp}hp so culling '
                           f'{100 * (hpll - len(hp_list)) / hpll:.3g}%')
                 if cum_ko != 0:
@@ -129,7 +122,6 @@ def calc_cases():
 
         hp_list = np.delete(hp_list, ko_index)
 
-        # noinspection PyTypeChecker
         ko = len(ko_index) / (len(hp_list) + len(ko_index))
         cum_ko = cum_ko + (1 - cum_ko) * ko
 
@@ -144,7 +136,6 @@ def calc_cases():
             print(f'KO: {ko * 100:.10g}%')
             if ko != cum_ko:
                 print(f'cumulative {i + 1}HKO: {cum_ko * 100:.10g}%')
-            # noinspection PyTypeChecker
             print(f'number of alive cases: {len(hp_list)}')
         else:
             print(f'min possible health after attack: {np.amin(hp_list):.2g}')
@@ -170,7 +161,7 @@ def calc():
     known_hp_dict = known_hp()
     if type(u2Dv) is int:
         u2Dv = [u2Dv for _ in attacks]
-    if type(u2Dtr) == int:
+    if type(u2Dtr) is int:
         u2Dtr = [u2Dtr for _ in attacks]
     if type(gl) is int:
         gl = [gl for _ in attacks]
@@ -245,13 +236,9 @@ def calc():
                         tally[hp] += tally_old[hp_old]
                     else:
                         dead += tally_old[hp_old]
-                    # below is badd, wasn't doing every single hp. gets more complicated. just do every hp, cba.
-                    # new_hps = tally_old[(j * 10) + hp]
-                    # indexes = np.argwhere(new_hps >= 0, range(10), -1)
-                    # ko += np.count_nonzero(indexes == -1)
 
         if i + 1 in known_hp_dict:
-            set_hp = known_hp_dict[i + 1]  # todo continue adapting for known_hp_dict
+            set_hp = known_hp_dict[i + 1]
             removed = 0
             for j in range(10):
                 visible_hp_sum = np.sum(tally[(j * 10):((j * 10) + 10)])
@@ -336,7 +323,7 @@ def known_hp():
     return {-1: 7, -2: 5, -3: 1}
 
 
-def attackers():
+def attackers():  # don't do more than ~16 attacks with normal luck if most stay alive. numbers get big.
     return [
         ['arty', 20, 99],
         ['inf', 20, 99],
