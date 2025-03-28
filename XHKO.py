@@ -176,7 +176,6 @@ def calc():
         gl = [gl for _ in attacks]
     if type(bl) is int:
         bl = [bl for _ in attacks]
-    hp_list = np.array([u2hp])
     print(f'defender: {int(1 + u2hp / 10)}hp'
           f' {[e + 100 for e in u2Dv] if u2Dv.count(u2Dv[0]) != len(u2Dv) else (u2Dv[0] + 100)} defence'
           f' {u2t}'
@@ -185,8 +184,10 @@ def calc():
     plot_hp = np.arange(100)  # 0-99 x axis for plot
     tally = np.zeros_like(plot_hp)  # corresponding tallys of how many cases are at each hp in that range
     tally[u2hp] = 1  # set initial hp (might not be 99 ig)
-    ko = 0
-    old_ko = 0
+    dead = 0
+    dead_old = 0
+    ko_cum = 0
+    repair = 0
 
     for i, a in enumerate(attacks):
         if i + 1 in heals:
@@ -210,16 +211,16 @@ def calc():
         if repair > 0:
             if repair > 99:  # edge cases when too much healing is inputted
                 repair = 99
-            old_tally = np.zeros_like(plot_hp)
+            tally_old = np.zeros_like(plot_hp)
             for hp in range(100):
                 if hp + repair >= 90:  # round from '10hp' to 99 & cap at 99
-                    old_tally[99] += tally[hp]
+                    tally_old[99] += tally[hp]
                 else:
-                    old_tally[hp + repair] += tally[hp]
+                    tally_old[hp + repair] += tally[hp]
             repair = 0
         else:
-            old_tally = tally
-        tally = np.zeros_like(old_tally)  # reset before calcs
+            tally_old = tally
+        tally = np.zeros_like(tally_old)  # reset before calcs
 
         base = base_damage(a[0], u2t, '')  # base damage lookup
         if base == 0:
@@ -229,44 +230,51 @@ def calc():
 
         for j in range(10):  # generate damage spread for all 10 visible defender health
             # hp =  j * 10 + 5 # 5, 15, ... 95 with 10 total
-            if np.sum(old_tally[(j * 10):((j * 10) + 10)]) == 0:  # if the 10 tallys in this visible hp add to 0
+            if np.sum(tally_old[(j * 10):((j * 10) + 10)]) == 0:  # if the 10 tallys in this visible hp add to 0
                 continue  # saves some time.
             dmg_list = all_damage(base, a[1] + 100, a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl[i], bl[i])
-            for dmg in dmg_list:
-                for k in range(10):  # apply damage to every defender hp
-                    old_hp = (j * 10) + k
-                    hp = old_hp - int(dmg)
+            # plt.plot(np.unique(dmg_list, return_counts=True)[0], np.unique(dmg_list, return_counts=True)[1])
+            # plt.show()
+            for k in range(10):  # apply damage to every defender hp
+                hp_old = (j * 10) + k
+                if tally_old[hp_old] == 0:  # if this tally doesn't have any cases
+                    continue  # saves some more time.
+                for dmg in dmg_list:
+                    hp = hp_old - int(dmg)
                     if hp >= 0:
-                        tally[hp] = old_tally[old_hp]
+                        tally[hp] += tally_old[hp_old]
                     else:
-                        ko += old_tally[old_hp]
+                        dead += tally_old[hp_old]
                     # below is badd, wasn't doing every single hp. gets more complicated. just do every hp, cba.
-                    # new_hps = old_tally[(j * 10) + hp]
+                    # new_hps = tally_old[(j * 10) + hp]
                     # indexes = np.argwhere(new_hps >= 0, range(10), -1)
                     # ko += np.count_nonzero(indexes == -1)
 
         if i + 1 in known_hp_dict:
             set_hp = known_hp_dict[i + 1]  # todo continue adapting for known_hp_dict
-            # # noinspection PyTypeChecker
-            # hpll = len(hp_list)
-            # hp_list = np.where(hp_list <= (set_hp * 10) - 1, hp_list, 100)
-            # hp_list = np.where((set_hp - 1) * 10 <= hp_list, hp_list, 100)
-            # hp_list = np.delete(hp_list, np.argwhere(hp_list == 100))
-            # # noinspection PyTypeChecker
-            # if len(hp_list) == 0:
-            #     print(f'known hp after attack {i + 1} of {set_hp}hp is not possible.')
-            #     quit()
-            # # noinspection PyTypeChecker
-            # if hpll - len(hp_list) != 0:
-            #     # noinspection PyTypeChecker
-            #     print(f'known hp after attack {i + 1}: {set_hp}hp so culling '
-            #           f'{100 * (hpll - len(hp_list)) / hpll:.3g}%')
-            # if cum_ko != 0:
-            #     print('resetting cumulative KO to 0')
-            #     cum_ko = 0  # resetting cumulative ko since we only care about cases from here on
+            removed = 0
+            for j in range(10):
+                visible_hp_sum = np.sum(tally[(j * 10):((j * 10) + 10)])
+                if set_hp == j + 1:
+                    if visible_hp_sum == 0:
+                        print(f'known hp after attack {i + 1} of {set_hp}hp is not possible.')
+                        quit()
+                else:
+                    removed += visible_hp_sum
+                    tally[(j * 10):((j * 10) + 10)] = 0
 
-        this_ko = ko - old_ko
-        old_ko = ko
+            if removed > 0:
+                print(f'known hp after attack {i + 1}: {set_hp}hp so culling '
+                      f'{100 * removed / (removed + np.sum(tally)):.3g}%')
+            if dead != 0:
+                print('resetting cumulative KO to 0')
+                dead = 0
+                dead_old = 0
+
+        dead_this = dead - dead_old
+        dead_old = dead
+        ko = dead_this / (dead_this + np.sum(tally))
+        ko_cum = ko_cum + (1 - ko_cum) * ko
 
         # all done for this attacker! message and plot to follow, then next attacker
         if np.sum(tally) == 0:
@@ -274,15 +282,15 @@ def calc():
             if i == 0:
                 quit()  # don't wanna plot if 1 attacker garantees 1HKO
             break
-        if ko > 0:
+        if dead > 0:
             print(f'max possible health after attack: {np.amax(plot_hp[np.argwhere(tally > 0)]):.2g}')
-            print(f'KO: {100 * this_ko / (this_ko + np.sum(tally)):.10g}%')
-            if this_ko != ko:
-                print(f'cumulative {i + 1}HKO: {100 * ko / (ko + np.sum(tally)):.10g}%')
-            print(f'number of alive cases: {np.sum(tally)}. number of dead cases: {ko}')
+            print(f'KO: {100 * ko:.10g}%')
+            if dead_this != dead:
+                print(f'cumulative {i + 1}HKO: {100 * ko_cum:.10g}%')
+            # print(f'number of alive cases: {np.sum(tally):.4e}')  # kinda useless info for wide luck values
         else:
             print(f'min possible health after attack: {np.amin(plot_hp[np.argwhere(tally > 0)]):.2g}')
-        plt.plot(plot_hp, 100 * tally / np.sum(tally), '.',
+        plt.plot(plot_hp[np.nonzero(tally)], 100 * tally[np.nonzero(tally)] / np.sum(tally), '.',
                  label=f'{i + 1}: {int(1 + a[2] / 10)}hp {a[1]} {a[0]}')
 
     plt.xlabel('hp (-1 = dead)')
@@ -317,21 +325,24 @@ def luck():
     # good_luck=25, bad_luck=10  # flak default -9 to +24
     # good_luck=30, bad_luck=15  # jugger default -14 to +29
     # good_luck = [10, 40, 40, 40]  # rachel activates COP after first attack so gd luck goes from 9 to 39
-    good_luck = 95
-    bad_luck = 45
+    good_luck = 55
+    bad_luck = 25
     return good_luck, bad_luck
 
 
 def known_hp():
     # hp is known *after* attack n. for example {1: 5} means after attacker 1, hp was set to 5
     # this removes all results that don't align to this hp and resets the cumulative KO to only count attack 2 onward
-    return {-1: 3, -2: 9, -3: 1}
+    return {-1: 7, -2: 5, -3: 1}
 
 
 def attackers():
     return [
         ['arty', 20, 99],
         ['inf', 20, 99],
+        ['tank', 20, 99],
+        ['inf', 20, 99],
+        ['inf', 10, 49],
         # ['inf', 0, 99],
     ]
     # ['tank', 10, 99],  # full hp andy tank with 1 tower
