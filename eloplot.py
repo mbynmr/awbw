@@ -20,13 +20,15 @@ def plot_elo():
 
     s = f"{league}+{rules}+{name}"
     scrape(s)
+
     # save first, then go back and re-order based on game order :D
     # you can still probably confuse the ordering by finishing another game while the first is ongoing
     # will happen quite often in GL but not as much in LL. gna make a fix for this later.
 
-    table = np.loadtxt(s + '.txt', delimiter='; ')
+    table = np.loadtxt('outputs/' + s + '.txt', delimiter=';', dtype=str)
 
-    for row in table:
+    elolist = np.zeros(table.shape[0])
+    for i, row in enumerate(table):
         # 1421286; 2025-05-06; Roll For Initiative; T2; 15; P1; ncghost12 ; 1016; eagle; ImSpartacus811 ; 779; kindle
         # 0: gameID
         # 1: date
@@ -40,18 +42,24 @@ def plot_elo():
         # 9: p2name
         # 10: p2elo
         # 11: p2co
-        if row[6] == name:
+        if row[6][1:-1] == name:
             player = 1
-        elif row[9] == name:
+        elif row[9][1:-1] == name:
             player = 2
         else:
             print(row)
-            raise Exception("player isn't p2 or p2?")
+            raise Exception("name isn't p2 or p2? huhhh")
+
         if row[5] == 'P' + str(player):
             win = True
+        elif row[5] == 'd':
+            draw = True
 
-    # plt.plot()
-    # plt.show()
+        elo = int(row[4 + (3 * player)])
+        elolist[i] = elo
+
+    plt.plot(elolist[::-1], '.')
+    plt.show()
 
 
 def scrape(search):
@@ -73,10 +81,10 @@ def scrape(search):
         offsets.append(offsets[-1] + 200)
     # print(offsets)  # todo remove this
 
-    with open(f"outputs/{league}+{rules}+{name}.txt", "w") as file:
+    with open(f"outputs/{search}.txt", "w") as file:
         for offset in offsets:
             if offset != 1:
-                s = f"http://awbw.mooo.com/search?q={league}+{rules}+{name}&offset={offset}"
+                s = f"http://awbw.mooo.com/search?q={search}&offset={offset}"
                 # http://awbw.mooo.com/search?q=ncghost12&offset=201
                 # http://awbw.mooo.com/searchReplays.php?q=ncghost12
                 page = requests.get(s)
