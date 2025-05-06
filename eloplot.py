@@ -22,7 +22,7 @@ def plot_elo():
     elolist = extract_elo(s)  # extracts elo from file
 
     # plot :>
-    plt.plot(elolist, '.')
+    plt.plot(elolist, '-')
     plt.show()
 
 
@@ -44,9 +44,9 @@ def extract_elo(s):
         # 9: p2name
         # 10: p2elo
         # 11: p2co
-        if row[6][1:-1] == s.split('+'[-1]):
+        if row[6][1:-1] == s.split('+')[-1]:
             player = 1
-        elif row[9][1:-1] == s.split('+'[-1]):
+        elif row[9][1:-1] == s.split('+')[-1]:
             player = 2
         else:
             print(row)
