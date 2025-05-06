@@ -302,15 +302,7 @@ class Brain:
         # auto save weights for long runs? 0.0
 
         self.model = tf.keras.models.Sequential([
-            tf.keras.layers.Input(inshape),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dropout(0.6),  # set some values to 0
-            tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.keras.initializers.RandomUniform()),
-            tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.keras.initializers.RandomNormal(stddev=0.05)),
-            tf.keras.layers.GaussianNoise(0.1),
-            tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.keras.initializers.RandomNormal(stddev=0.02)),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(outshape, activation='softmax')
+            # todo make this
         ])
 
         if load is not None:

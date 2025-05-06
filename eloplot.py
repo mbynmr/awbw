@@ -3,10 +3,8 @@ import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 import requests
 
-
-
 """
-run plot_elo() on a text file
+run plot_elo() and freely change league/rules/name
 """
 
 
@@ -17,14 +15,18 @@ def plot_elo():
     # rules = 'hf'
     # rules = 'fog'
     name = 'ncghost12'  # 'wealthytuna'
-
     s = f"{league}+{rules}+{name}"
-    scrape(s)
 
-    # save first, then go back and re-order based on game order :D
-    # you can still probably confuse the ordering by finishing another game while the first is ongoing
-    # will happen quite often in GL but not as much in LL. gna make a fix for this later.
+    scrape(s)  # scrapes the mooo site for the search, saves to file
 
+    elolist = extract_elo(s)  # extracts elo from file
+
+    # plot :>
+    plt.plot(elolist, '.')
+    plt.show()
+
+
+def extract_elo(s):
     table = np.loadtxt('outputs/' + s + '.txt', delimiter=';', dtype=str)
 
     elolist = np.zeros(table.shape[0])
@@ -42,9 +44,9 @@ def plot_elo():
         # 9: p2name
         # 10: p2elo
         # 11: p2co
-        if row[6][1:-1] == name:
+        if row[6][1:-1] == s.split('+'[-1]):
             player = 1
-        elif row[9][1:-1] == name:
+        elif row[9][1:-1] == s.split('+'[-1]):
             player = 2
         else:
             print(row)
@@ -57,16 +59,13 @@ def plot_elo():
 
         elo = int(row[4 + (3 * player)])
         elolist[i] = elo
-
-    plt.plot(elolist[::-1], '.')
-    plt.show()
+    return elolist[::-1]
 
 
 def scrape(search):
     s = "http://awbw.mooo.com/searchReplays.php?q=" + search  # &spoiler=on
     page = requests.get(s)
     page.raise_for_status()
-
     page = BeautifulSoup(page.content, features="html.parser")  # todo check parser
 
     resultbox = str(page.find("div", class_="resultBox").next.next)
@@ -79,7 +78,6 @@ def scrape(search):
     # 201: 1+200<=201 TRUE append; 201+200<=201 FALSE
     while offsets[-1] + 200 <= int(resultbox.split(' ')[0]):
         offsets.append(offsets[-1] + 200)
-    # print(offsets)  # todo remove this
 
     with open(f"outputs/{search}.txt", "w") as file:
         for offset in offsets:
@@ -150,6 +148,7 @@ def scrape(search):
                             case _:
                                 print(f"unexpected item {item}")
 
+                # fully scraped this line, now formatting stuff
                 game_ID = replay_link.split('.zip')[0].split('/')[1]
                 if game_name[0:13] == 'Live League -':
                     tier = int(game_name[::-1].split(' ,')[1][0])
@@ -159,8 +158,8 @@ def scrape(search):
                     # GL rules [TX]: P1 vs P2
                 else:
                     tier = '?'  # unknown tier?
-                p1_name = p1[::-1].split('(')[1][::-1]
-                p1_rating = int(p1[::-1].split('(')[0][::-1][:-1])
+
+                # saving stuff
                 # game_ID; date; map_name; tier; days; winner (1/2/d); name1; rating1; co1; name2; rating2; co2
                 a = f"{game_ID}; {date}; {map_name}; T{tier}; {days}; {w if w == 'd' else 'P' + str(w)}"
                 p1a = f"{p1[::-1].split('(')[1][::-1]}; {int(p1[::-1].split('(')[0][::-1][:-1])}; {p1_co}"
@@ -173,3 +172,6 @@ def scrape(search):
                     except UnicodeEncodeError as e:
                         g = g[:e.args[2]] + '*' + g[e.args[2] + 1:]
 
+    # save first, then go back and re-order based on game order :D
+    # you can still probably confuse the ordering by finishing another game while the first is ongoing
+    # will happen quite often in GL but not as much in LL. gna make a fix for this later.
