@@ -1,9 +1,9 @@
 # awbw
 
-bunch of half-finished projects and stuff!
-a XHKO calc (actually working and useful :D)
-elo plotting
-a GUI to play the game with (need local assets)
+bunch of half-finished projects and stuff:
+a XHKO calc (actually working and useful :D);
+elo plotting;
+a GUI to play the game with (need local assets);
 structure to work around an ai (needs completely redoing, is v bulky & slow)
 
 
