@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 import requests
+import os.path
+
 
 """
 run plot_elo() and freely change league/rules/name
@@ -9,20 +11,27 @@ run plot_elo() and freely change league/rules/name
 
 
 def plot_elo():
-    league = 'live+league'
-    # league = 'global+league'
+    # league = 'live+league'
+    league = 'global+league'
     rules = 'std'
     # rules = 'hf'
     # rules = 'fog'
-    name = 'ncghost12'  # 'wealthytuna'
-    s = f"{league}+{rules}+{name}"
+    name = 'Spritemare'  # 'WealthyTuna'
 
-    scrape(s)  # scrapes the mooo site for the search, saves to file
+    fig, ax = plt.subplots(1)
+    # for rules in ['std', 'hf', 'fog']:
+    for name in ['ncghost12', 'new1234', 'High Funds High Fun']:
+        s = f"{league}+{rules}+{name}"
 
-    elolist = extract_elo(s)  # extracts elo from file
+        if not os.path.isfile('outputs/' + s + '.txt'):
+            print(f'scraping for {s}')
+            scrape(s)  # scrapes the mooo site for the search, saves to file
 
-    # plot :>
-    plt.plot(elolist, '-')
+        elolist = extract_elo(s)  # extracts elo from file
+
+        # plot :>
+        ax.plot(elolist, '-', label=name)
+    plt.legend()
     plt.show()
 
 
