@@ -129,6 +129,8 @@ def base_damage(type1, type2, ammo=''):  # default ammo is ok. if 'AMMO' is pass
 
 def base_damage_ints(type1, type2, ammo):  # default to unit having ammo. if ammo value <= 0
     if type1 == 11:  # inf
+        if type2 == 11:
+            return 55
         return [5, 12, 15, 7, 0, 0, 0, 0, 0, 0, 0, 55, 0, 1, 45, 1, 25, 1, 5, 12, 25, 0, 0, 30, 5][type2]
     elif ammo <= 0:  # if unit isn't shooting with primary ammo (ran out or is transport)
         if type1 in [3, 9, 13, 14, 15, 17, 24]:  # bcopter, cruiser, med, mech, mega, neo, tank

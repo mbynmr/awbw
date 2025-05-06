@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+# from tqdm import tqdm
 
 from fire import base_damage
 
@@ -39,6 +39,8 @@ def reformat(var, length):
 
 def calc():
     u2t, u2Dv, u2Dtr, u2hp, heals = defender()
+    if u2t in ['bcopter', 'tcopter', 'fighter', 'bomber', 'stealth', 'bbomb']:
+        u2Dtr = 0  # ignore erroneous defence stars
     attacks = attackers()
     gl, bl = luck()
     known_hp_dict = known_hp()
@@ -83,7 +85,8 @@ def calc():
                 repair = 99
             tally_old = np.zeros_like(plot_hp)
             for hp in range(100):
-                if hp + repair >= 90:  # round from '10hp' to 99 & cap at 99
+                if hp + repair >= 99:  # cap at 99
+                    #todo 2025/05/02 change repair to always do XX to YX where Y = X + 1. 10hp *no* special treatement
                     tally_old[99] += tally[hp]
                 else:
                     tally_old[hp + repair] += tally[hp]
@@ -161,7 +164,8 @@ def calc():
 
     plt.xlabel('hp (-1 = dead)')
     plt.ylabel('% of results')
-    plt.xlim(left=0)
+    plt.xlim(left=0, right=99)
+    plt.xticks(np.arange(0, 99 + 1, 10))
     plt.ylim(bottom=0)
     # plt.ylim(top=30)
     plt.legend()
@@ -178,8 +182,8 @@ def defender():
     u2t = 'inf'
     u2Dv = 0
     # u2Dv = [10, 10, 20, 20]
-    u2Dtr = 1
-    # u2Dtr = [3, 0, 0, 1, 1]
+    u2Dtr = 3
+    # u2Dtr = [3, 4, 0, 1, 1]
     u2hp = int(99)  # 99 is full, 0 is alive, -1 is dead. This way hp = the 10s didget + 1, no confusion.
     heals = {-3: 'bboat', -2: 'property1'}  # heals *before* attacker number x. multiple e.g. bboat2 to 9
     return u2t, u2Dv, u2Dtr, u2hp, heals  # u2t = str, u2hp = int(0-99), u2Dv & u2Dtr = int OR list of int, heals = dict
@@ -199,16 +203,21 @@ def luck():
 def known_hp():
     # hp is known *after* attack n. for example {1: 5} means after attacker 1, hp was set to 5
     # this removes all results that don't align to this hp and resets the cumulative KO to only count attack 2 onward
-    return {-1: 7, -2: 5, -3: 1}
+    return {-1: 6, -2: 5, -3: 1}
 
 
 def attackers():  # don't do more than ~16 attacks with normal luck if most stay alive. numbers get big.
     return [
-        ['arty', 20, 99],
-        ['inf', 20, 99],
-        ['tank', 20, 99],
-        ['inf', 20, 99],
-        ['inf', 10, 49],
+        ['tank', 10, 99],
+        ['inf', 10, 69],
+        # ['bcopter', 10, 99],
+        # ['tank', 30, 99],
+        # ['inf', 30, 99],
+        # ['med', 30, 99],
+        # ['inf', 20, 99],
+        # ['tank', 20, 99],
+        # ['inf', 20, 99],
+        # ['inf', 10, 49],
         # ['inf', 0, 99],
     ]
     # ['tank', 10, 99],  # full hp andy tank with 1 tower
