@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from bs4 import BeautifulSoup
 import requests
 import os.path
+import datetime as dt
 
 
 """
@@ -11,34 +13,105 @@ run plot_elo() and freely change league/rules/name
 
 
 def plot_elo():
-    # league = 'live+league'
-    league = 'global+league'
+    league = 'live+league'
+    # league = 'global+league'
     rules = 'std'
     # rules = 'hf'
     # rules = 'fog'
-    name = 'Spritemare'  # 'WealthyTuna'
+    name = 'Spidy400'  # 'WealthyTuna'
+    # plot_option = 'elo'
+    # plot_option = 'date,elo'
+    plot_option = 'co_pick,winrate'
+    # plot_option = 'tier,winrate'
 
     fig, ax = plt.subplots(1)
+    if plot_option == 'date,elo' or plot_option == 'co_pick,winrate':
+        fig.autofmt_xdate()
     # for rules in ['std', 'hf', 'fog']:
-    for name in ['ncghost12', 'new1234', 'High Funds High Fun']:
+    # for name in ['ncghost12', 'new1234', 'High Funds High Fun']:
+    # for name in ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna']:
+    for name in ['ncghost12', 'new1234']:
         s = f"{league}+{rules}+{name}"
 
         if not os.path.isfile('outputs/' + s + '.txt'):
             print(f'scraping for {s}')
             scrape(s)  # scrapes the mooo site for the search, saves to file
 
-        elolist = extract_elo(s)  # extracts elo from file
+        elo, date, oppelo, date, result, co_pick, co_against, tier = extract_elo(s)  # extracts elo from file
 
         # plot :>
-        ax.plot(elolist, '-', label=name)
+
+        match plot_option:
+            case 'elo':
+                ax.plot(elo, '-', label=name)
+                # ax.plot(oppelo, '.', label='oppelo')
+            case 'date,elo':
+                datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+                ax.plot(datex, elo, '-', label=name)
+            case 'co_pick,winrate':
+                match rules:
+                    case 'std':
+                        cos = ['adder', 'grimm', 'jake', 'jess', 'koal', 'sonja',
+                               'andy', 'drake', 'lash', 'rachel',
+                               'eagle', 'kindle', 'max', 'olaf', 'sami', 'hawke', 'javier', 'sasha', 'vonbolt',
+                               'colin', 'grit', 'hachi', 'kanbei', 'sensei', 'sturm',
+                               'flak', 'jugger', 'nell']
+                    case 'fog':
+                        cos = ['adder', 'grimm', 'jake', 'jess', 'koal',
+                               'andy', 'drake', 'kindle', 'lash', 'rachel', 'sami', 'sonja',
+                               'eagle', 'max', 'olaf',
+                               'grit', 'hawke', 'javier', 'sasha', 'vonbolt',
+                               'colin', 'hachi', 'kanbei', 'sensei', 'sturm',
+                               'flak', 'jugger', 'nell']
+                    case 'hf':
+                        cos = ['adder', 'grimm', 'jake', 'jess', 'koal', 'sami', 'sonja',
+                               'javier', 'kindle', 'rachel', 'sasha',
+                               'andy', 'drake', 'grit', 'max', 'sturm', 'vonbolt',
+                               'eagle', 'hawke', 'olaf', 'sensei',
+                               'colin', 'hachi', 'kanbei',
+                               'flak', 'jugger', 'nell']
+                    case _:  # alphabetical by army, as on the site. redundant hopefully
+                        cos = ['andy', 'hachi', 'jake', 'max', 'nell', 'rachel', 'sami', 'colin', 'grit', 'olaf',
+                               'sasha', 'drake', 'eagle', 'javier', 'jess', 'grimm', 'kanbei', 'sensei', 'sonja',
+                               'adder', 'flak', 'hawke', 'jugger', 'kindle', 'koal', 'lash', 'sturm', 'vonbolt']
+                winc = np.zeros(len(cos))
+                losec = np.zeros(len(cos))
+                for i, co in enumerate(co_against):
+                    if result[i] == 1:
+                        winc[cos.index(co)] += 1
+                    elif result[i] == -1:
+                        losec[cos.index(co)] += 1
+                ax.plot(cos, (winc / (winc + losec)) * 100, 'o', label=name)
+                plt.ylim([0, 100])
+                plt.yticks(np.linspace(start=0, stop=100, num=11, endpoint=True))
+            case 'tier,winrate':
+                tiers = ['4', '3', '2', '1', '0', '?']
+                winc = np.zeros(len(tiers))
+                losec = np.zeros(len(tiers))
+                for i, t in enumerate(tier):
+                    if result[i] == 1:
+                        winc[tiers.index(t)] += 1
+                    elif result[i] == -1:
+                        losec[tiers.index(t)] += 1
+                ax.plot(tiers, (winc / (winc + losec)) * 100, 'o', label=name)
+                plt.ylim([0, 100])
+
     plt.legend()
+    plt.tight_layout()
     plt.show()
 
 
 def extract_elo(s):
     table = np.loadtxt('outputs/' + s + '.txt', delimiter=';', dtype=str)
 
-    elolist = np.zeros(table.shape[0])
+    elo = np.zeros(table.shape[0])
+    oppelo = np.zeros(table.shape[0])
+    result = np.zeros(table.shape[0])
+    tier = [None] * table.shape[0]
+    date = [None] * table.shape[0]
+    co_pick = [None] * table.shape[0]
+    co_against = [None] * table.shape[0]
     for i, row in enumerate(table):
         # 1421286; 2025-05-06; Roll For Initiative; T2; 15; P1; ncghost12 ; 1016; eagle; ImSpartacus811 ; 779; kindle
         # 0: gameID
@@ -61,14 +134,19 @@ def extract_elo(s):
             print(row)
             raise Exception("name isn't p2 or p2? huhhh")
 
-        if row[5] == 'P' + str(player):
-            win = True
-        elif row[5] == 'd':
-            draw = True
-
-        elo = int(row[4 + (3 * player)])
-        elolist[i] = elo
-    return elolist[::-1]
+        if row[5][1:] == 'P' + str(player):
+            result[i] = 1
+        elif row[5][1:] == 'd':
+            result[i] = 0
+        else:
+            result[i] = -1
+        elo[i] = int(row[4 + (3 * player)])
+        oppelo[i] = int(row[4 + (3 * (2 if player == 1 else 1))])
+        date[i] = row[1][1:]
+        co_pick[i] = row[5 + (3 * player)][1:]
+        co_against[i] = row[5 + (3 * (2 if player == 1 else 1))][1:]
+        tier[i] = row[3][2:]
+    return elo[::-1], date[::-1], oppelo[::-1], date[::-1], result[::-1], co_pick[::-1], co_against[::-1], tier[::-1]
 
 
 def scrape(search):
