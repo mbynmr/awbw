@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -14,58 +16,62 @@ run plot_elo() and freely change league/rules/name
 def plot_elo():
     league = 'live+league'
     # league = 'global+league'
-    rules = 'std'
-    # rules = 'hf'
-    # rules = 'fog'
-    name = 'Spidy400'  # 'WealthyTuna'
-    # plot_option = 'elo'
-    # plot_option = 'date,elo'
+    plot_option = 'elo'
+    plot_option = 'date,elo'
     # plot_option = 'co_pick,winrate'
+    plot_option = 'co_against,winrate'
     plot_option = 'tier,winrate'
 
     fig, ax = plt.subplots(1)
-    if plot_option == 'date,elo' or plot_option == 'co_pick,winrate':
-        fig.autofmt_xdate()
-    # for rules in ['std', 'hf', 'fog']:
-    # for name in ['ncghost12', 'new1234', 'High Funds High Fun']:
-    # for name in ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna']:
-    for name in ['ncghost12', 'new1234']:
-        s = f"{league}+{rules}+{name}"
+    if plot_option == 'date,elo' or plot_option == 'co_pick,winrate' or plot_option == 'co_against,winrate':
+        fig.autofmt_xdate()  # format the x-axis for squeezing in longer tick labels
+    # ['std', 'hf', 'fog']:
+    for rules in ['std']:
 
-        if not os.path.isfile('outputs/' + s + '.txt'):
-            print(f'scraping for {s}')
-            scrape(s)  # scrapes the mooo site for the search, saves to file
+        # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']:
+        # ['ncghost12', 'new1234', 'Heuristic']:
+        for name in ['Po1and', 'Po2and']:
 
-        elo, date, oppelo, date, result, co_pick, co_against, tier = extract_elo(s)  # extracts elo from file
+            # search/save string
+            s = f"{league}+{rules}+{name}"
 
-        # plot :>
-        match plot_option:
-            case 'elo':
-                ax.plot(elo, '-', label=name)
-                # ax.plot(oppelo, '.', label='oppelo')
-            case 'date,elo':
-                datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-                ax.plot(datex, elo, '-', label=name)
-            case 'co_pick,winrate':
-                categories = co_list_maker(rules)
-                entries = co_against
-            case 'tier,winrate':
-                categories = ['4', '3', '2', '1', '0', '?']  # tiers
-                entries = tier
-        if plot_option.split(',')[-1] == 'winrate':
-            winc = np.zeros(len(categories))
-            losec = np.zeros(len(categories))
-            for i, e in enumerate(entries):
-                if result[i] == 1:
-                    winc[categories.index(e)] += 1
-                elif result[i] == -1:
-                    losec[categories.index(e)] += 1
-                else:
-                    # draw case, wanna plot it?
-                    pass
-            ax.plot(categories, (winc / (winc + losec)) * 100, 'o', label=name)
-            plt.ylim([0, 100])
+            if not os.path.isfile('outputs/' + s + '.txt'):  # does the local file already exist?
+                print(f'scraping for {s}')
+                scrape(s)  # scrapes the mooo site for the search, saves to file
+
+            elo, date, oppelo, date, result, co_pick, co_against, tier = extract_elo(s)  # extracts stuff from file
+
+            # plot :>
+            match plot_option:
+                case 'elo':
+                    ax.plot(elo[::-1], '-', label=name)
+                    # ax.plot(oppelo[::-1], '.', label='oppelo')
+                case 'date,elo':
+                    datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+                    ax.plot(datex, elo, '-', label=name)
+                case 'co_pick,winrate':
+                    categories = co_list_maker(rules)
+                    entries = co_pick
+                case 'co_against,winrate':
+                    categories = co_list_maker(rules)
+                    entries = co_against
+                case 'tier,winrate':
+                    categories = ['4', '3', '2', '1', '0', '?']  # tiers
+                    entries = tier
+            if plot_option.split(',')[-1] == 'winrate':  # figure out winrate in % for categories
+                winc = np.zeros(len(categories))
+                losec = np.zeros(len(categories))
+                for i, e in enumerate(entries):
+                    if result[i] == 1:
+                        winc[categories.index(e)] += 1
+                    elif result[i] == -1:
+                        losec[categories.index(e)] += 1
+                    else:
+                        # game was drawn case, wanna plot it?
+                        pass
+                ax.plot(categories, (winc / (winc + losec)) * 100, 'o', label=name)
+                plt.ylim([0, 100])
 
     plt.legend()
     plt.tight_layout()
@@ -116,25 +122,18 @@ def extract_elo(s):
         co_pick[i] = row[5 + (3 * player)][1:]
         co_against[i] = row[5 + (3 * (2 if player == 1 else 1))][1:]
         tier[i] = row[3][2:]
-    return elo[::-1], date[::-1], oppelo[::-1], date[::-1], result[::-1], co_pick[::-1], co_against[::-1], tier[::-1]
+    return elo, date, oppelo, date, result, co_pick, co_against, tier
 
 
 def scrape(search):
     s = "http://awbw.mooo.com/searchReplays.php?q=" + search  # &spoiler=on
-    page = requests.get(s)
-    page.raise_for_status()
-    page = BeautifulSoup(page.content, features="html.parser")  # todo check parser
-
+    page = page_getter(s)
     resultbox = str(page.find("div", class_="resultBox").next.next)
-    offsets = [1]
-    # todo rewrite with for in 1 line: offsets = [(e * 200) + 1 for e in range(int(int(resultbox.split(' ')[0]) / 200))]
-    # if resultbox.split(' ')[1] == 'total':
-    # 100: 1+200<=100 FALSE
-    # 250: 1+200<=250 TRUE append; 201+200<=250 FALSE
-    # 200: 1+200<=200 FALSE
-    # 201: 1+200<=201 TRUE append; 201+200<=201 FALSE
-    while offsets[-1] + 200 <= int(resultbox.split(' ')[0]):
-        offsets.append(offsets[-1] + 200)
+
+    # offsets = [1]
+    # while offsets[-1] + 200 <= int(resultbox.split(' ')[0]):
+    #     offsets.append(offsets[-1] + 200)
+    offsets = [(e * 200) + 1 for e in range(int(np.ceil(int(resultbox.split(' ')[0]) / 200)))]
 
     with open(f"outputs/{search}.txt", "w") as file:
         for offset in offsets:
@@ -142,9 +141,8 @@ def scrape(search):
                 s = f"http://awbw.mooo.com/search?q={search}&offset={offset}"
                 # http://awbw.mooo.com/search?q=ncghost12&offset=201
                 # http://awbw.mooo.com/searchReplays.php?q=ncghost12
-                page = requests.get(s)
-                page.raise_for_status()
-                page = BeautifulSoup(page.content, features="html.parser")
+                time.sleep(2)  # slows down searches on the mooo site so it doesn't get angi at me :>
+                page = page_getter(s)
 
             table = page.find("div", class_="tableWrapper").find("table", class_="sortable").find("tbody")
             for row in table.find_all('tr'):
@@ -168,16 +166,6 @@ def scrape(search):
                     p1win = True
                 w = 1 if p1win else (2 if p2win else 'd')
                 for i, item in enumerate(items):
-                    # if item in ['list of text entry items looking for', {'class': ['playerColumn']}]:
-                    #     text = item.next
-                    #     s = ''
-                    #     while s == '':
-                    #         try:
-                    #             s = text
-                    #         except Exception as e:  # update this to be the right exception
-                    #             print(e)
-                    #             text = text.next
-                    #             continue
                     if 4 <= i <= 7:
                         match i:
                             case 4:
@@ -231,7 +219,7 @@ def scrape(search):
 
     # save first, then go back and re-order based on game order :D
     # you can still probably confuse the ordering by finishing another game while the first is ongoing
-    # will happen quite often in GL but not as much in LL. gna make a fix for this later.
+    # will happen quite often in GL but not as much in LL. gna make a fix for this later. maybee
 
 
 def co_list_maker(rules):
@@ -269,3 +257,9 @@ def co_list_maker(rules):
                 'sasha', 'drake', 'eagle', 'javier', 'jess', 'grimm', 'kanbei', 'sensei', 'sonja',
                 'adder', 'flak', 'hawke', 'jugger', 'kindle', 'koal', 'lash', 'sturm', 'vonbolt'
             ]
+
+
+def page_getter(url):
+    page = requests.get(url)
+    page.raise_for_status()
+    return BeautifulSoup(page.content, features="html.parser")  # todo check parser
