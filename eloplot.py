@@ -6,7 +6,6 @@ import requests
 import os.path
 import datetime as dt
 
-
 """
 run plot_elo() and freely change league/rules/name
 """
@@ -21,8 +20,8 @@ def plot_elo():
     name = 'Spidy400'  # 'WealthyTuna'
     # plot_option = 'elo'
     # plot_option = 'date,elo'
-    plot_option = 'co_pick,winrate'
-    # plot_option = 'tier,winrate'
+    # plot_option = 'co_pick,winrate'
+    plot_option = 'tier,winrate'
 
     fig, ax = plt.subplots(1)
     if plot_option == 'date,elo' or plot_option == 'co_pick,winrate':
@@ -40,7 +39,6 @@ def plot_elo():
         elo, date, oppelo, date, result, co_pick, co_against, tier = extract_elo(s)  # extracts elo from file
 
         # plot :>
-
         match plot_option:
             case 'elo':
                 ax.plot(elo, '-', label=name)
@@ -50,52 +48,24 @@ def plot_elo():
                 ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
                 ax.plot(datex, elo, '-', label=name)
             case 'co_pick,winrate':
-                match rules:
-                    case 'std':
-                        cos = ['adder', 'grimm', 'jake', 'jess', 'koal', 'sonja',
-                               'andy', 'drake', 'lash', 'rachel',
-                               'eagle', 'kindle', 'max', 'olaf', 'sami', 'hawke', 'javier', 'sasha', 'vonbolt',
-                               'colin', 'grit', 'hachi', 'kanbei', 'sensei', 'sturm',
-                               'flak', 'jugger', 'nell']
-                    case 'fog':
-                        cos = ['adder', 'grimm', 'jake', 'jess', 'koal',
-                               'andy', 'drake', 'kindle', 'lash', 'rachel', 'sami', 'sonja',
-                               'eagle', 'max', 'olaf',
-                               'grit', 'hawke', 'javier', 'sasha', 'vonbolt',
-                               'colin', 'hachi', 'kanbei', 'sensei', 'sturm',
-                               'flak', 'jugger', 'nell']
-                    case 'hf':
-                        cos = ['adder', 'grimm', 'jake', 'jess', 'koal', 'sami', 'sonja',
-                               'javier', 'kindle', 'rachel', 'sasha',
-                               'andy', 'drake', 'grit', 'max', 'sturm', 'vonbolt',
-                               'eagle', 'hawke', 'olaf', 'sensei',
-                               'colin', 'hachi', 'kanbei',
-                               'flak', 'jugger', 'nell']
-                    case _:  # alphabetical by army, as on the site. redundant hopefully
-                        cos = ['andy', 'hachi', 'jake', 'max', 'nell', 'rachel', 'sami', 'colin', 'grit', 'olaf',
-                               'sasha', 'drake', 'eagle', 'javier', 'jess', 'grimm', 'kanbei', 'sensei', 'sonja',
-                               'adder', 'flak', 'hawke', 'jugger', 'kindle', 'koal', 'lash', 'sturm', 'vonbolt']
-                winc = np.zeros(len(cos))
-                losec = np.zeros(len(cos))
-                for i, co in enumerate(co_against):
-                    if result[i] == 1:
-                        winc[cos.index(co)] += 1
-                    elif result[i] == -1:
-                        losec[cos.index(co)] += 1
-                ax.plot(cos, (winc / (winc + losec)) * 100, 'o', label=name)
-                plt.ylim([0, 100])
-                plt.yticks(np.linspace(start=0, stop=100, num=11, endpoint=True))
+                categories = co_list_maker(rules)
+                entries = co_against
             case 'tier,winrate':
-                tiers = ['4', '3', '2', '1', '0', '?']
-                winc = np.zeros(len(tiers))
-                losec = np.zeros(len(tiers))
-                for i, t in enumerate(tier):
-                    if result[i] == 1:
-                        winc[tiers.index(t)] += 1
-                    elif result[i] == -1:
-                        losec[tiers.index(t)] += 1
-                ax.plot(tiers, (winc / (winc + losec)) * 100, 'o', label=name)
-                plt.ylim([0, 100])
+                categories = ['4', '3', '2', '1', '0', '?']  # tiers
+                entries = tier
+        if plot_option.split(',')[-1] == 'winrate':
+            winc = np.zeros(len(categories))
+            losec = np.zeros(len(categories))
+            for i, e in enumerate(entries):
+                if result[i] == 1:
+                    winc[categories.index(e)] += 1
+                elif result[i] == -1:
+                    losec[categories.index(e)] += 1
+                else:
+                    # draw case, wanna plot it?
+                    pass
+            ax.plot(categories, (winc / (winc + losec)) * 100, 'o', label=name)
+            plt.ylim([0, 100])
 
     plt.legend()
     plt.tight_layout()
@@ -262,3 +232,40 @@ def scrape(search):
     # save first, then go back and re-order based on game order :D
     # you can still probably confuse the ordering by finishing another game while the first is ongoing
     # will happen quite often in GL but not as much in LL. gna make a fix for this later.
+
+
+def co_list_maker(rules):
+    # returns a list of all COs ordered from T4-...-T1-T0-T? given the ruleset inputted
+    match rules:
+        case 'std':
+            return [
+                'adder', 'grimm', 'jake', 'jess', 'koal', 'sonja',
+                'andy', 'drake', 'lash', 'rachel',
+                'eagle', 'kindle', 'max', 'olaf', 'sami', 'hawke', 'javier', 'sasha', 'vonbolt',
+                'colin', 'grit', 'hachi', 'kanbei', 'sensei', 'sturm',
+                'flak', 'jugger', 'nell'
+            ]
+        case 'fog':
+            return [
+                'adder', 'grimm', 'jake', 'jess', 'koal',
+                'andy', 'drake', 'kindle', 'lash', 'rachel', 'sami', 'sonja',
+                'eagle', 'max', 'olaf',
+                'grit', 'hawke', 'javier', 'sasha', 'vonbolt',
+                'colin', 'hachi', 'kanbei', 'sensei', 'sturm',
+                'flak', 'jugger', 'nell'
+            ]
+        case 'hf':
+            return [
+                'adder', 'grimm', 'jake', 'jess', 'koal', 'sami', 'sonja',
+                'javier', 'kindle', 'rachel', 'sasha',
+                'andy', 'drake', 'grit', 'max', 'sturm', 'vonbolt',
+                'eagle', 'hawke', 'olaf', 'sensei',
+                'colin', 'hachi', 'kanbei',
+                'flak', 'jugger', 'nell'
+            ]
+        case _:  # alphabetical by army, as on the site. redundant hopefully
+            return [
+                'andy', 'hachi', 'jake', 'max', 'nell', 'rachel', 'sami', 'colin', 'grit', 'olaf',
+                'sasha', 'drake', 'eagle', 'javier', 'jess', 'grimm', 'kanbei', 'sensei', 'sonja',
+                'adder', 'flak', 'hawke', 'jugger', 'kindle', 'koal', 'lash', 'sturm', 'vonbolt'
+            ]
