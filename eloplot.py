@@ -60,6 +60,7 @@ def plot_elo():
             if not os.path.isfile('outputs/' + s.replace('"', '') + '.txt'):  # does the local file already exist?
                 print(f'scraping for {s}')
                 scrape(s)  # scrapes the mooo site for the search, saves to file
+                time.sleep(1)
 
             # extracts stuff from file
             elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo(s.replace('"', ''))
@@ -154,6 +155,9 @@ def extract_elo(s):
         elif row[9][1:-1] == s.split('+')[-1]:
             player = 2
         else:
+            print(row[6][1:-1])
+            print(row[9][1:-1])
+            print(s.split('+')[-1])
             print(row)
             raise Exception("name isn't p2 or p2? huhhh")
 
@@ -199,7 +203,7 @@ def scrape(search):
                 # http://awbw.mooo.com/search?q=live+league+std+"ncghost12"&offset={offset}
                 # http://awbw.mooo.com/search?q=ncghost12&offset=201
                 # http://awbw.mooo.com/searchReplays.php?q=ncghost12
-                time.sleep(2)  # slows down searches on the mooo site so it doesn't get angi at me :>
+                time.sleep(1)  # slows down searches on the mooo site so it doesn't get angi at me :>
                 page = page_getter(s)
 
             table = page.find("div", class_="tableWrapper").find("table", class_="sortable").find("tbody")
