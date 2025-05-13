@@ -3,6 +3,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from scipy.ndimage import gaussian_filter
 from bs4 import BeautifulSoup
 import requests
 import os.path
@@ -14,42 +15,61 @@ run plot_elo() and freely change league/rules/name
 
 
 def plot_elo():
+    # what do u wanna plot?
+    plot_option = 'elo'  # elo on game number
+    # plot_option = 'date,elo'  # elo on date
+    plot_option = 'co_pick,winrate'  # winrate on co picked
+    plot_option = 'co_against,winrate'  # winrate on co against
+    # plot_option = 'tier,winrate'  # winrate on tier
+    plot_option = 'days,winrate'  # winrate on days of game
+    # plot_option = 'date,days'  # days of game on date  # todo
+    # plot_option = 'map,co'  # map!!  # todo
+    # plot_option = 'map,p1/p2 on date'  # map!!  # todo
+    # plot_option = 'map,days'  # map!!  # todo
+    gauss_filter = False
+
+    min_elo = 700
+    min_elo = 1100  # for winrate plots, discards ALL games that don't have BOTH players ending above this elo
+
     league = 'live+league'
     # league = 'global+league'
-    plot_option = 'elo'
-    plot_option = 'date,elo'
-    # plot_option = 'co_pick,winrate'
-    plot_option = 'co_against,winrate'
-    plot_option = 'tier,winrate'
+    # league = ''  # neither
 
+    rulesiter = ['std']  # ['std', 'hf', 'fog']
+    nameiter = ['new1234', 'fluhfie', 'Spidy400']
+    # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
+    # ['ncghost12', 'new1234', 'Heuristic']
+    # ['Voice of Akasha', 'Grimm Guy', 'tesla246']
+
+    # figure stuff
     fig, ax = plt.subplots(1)
-    if plot_option == 'date,elo' or plot_option == 'co_pick,winrate' or plot_option == 'co_against,winrate':
+    if plot_option in ['date,elo', 'co_pick,winrate', 'co_against,winrate', 'date,days']:
         fig.autofmt_xdate()  # format the x-axis for squeezing in longer tick labels
-    # ['std', 'hf', 'fog']:
-    for rules in ['std']:
 
-        # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']:
-        # ['ncghost12', 'new1234', 'Heuristic']:
-        for name in ['Po1and', 'Po2and']:
-
+    for rules in rulesiter:
+        for name in nameiter:
             # search/save string
-            s = f"{league}+{rules}+{name}"
+            s = f'{league}+{rules}+"{name}"'
 
-            if not os.path.isfile('outputs/' + s + '.txt'):  # does the local file already exist?
+            # plot label
+            label = ('' if len(rulesiter) == 1 else (rules + ' ')) + ('' if len(nameiter) == 1 else name)
+
+            # grab info
+            if not os.path.isfile('outputs/' + s.replace('"', '') + '.txt'):  # does the local file already exist?
                 print(f'scraping for {s}')
                 scrape(s)  # scrapes the mooo site for the search, saves to file
 
-            elo, date, oppelo, date, result, co_pick, co_against, tier = extract_elo(s)  # extracts stuff from file
+            elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo(s.replace('"', ''))  # extracts stuff from file
 
             # plot :>
             match plot_option:
                 case 'elo':
-                    ax.plot(elo[::-1], '-', label=name)
-                    # ax.plot(oppelo[::-1], '.', label='oppelo')
+                    ax.plot(elo[::-1], '-', label=label)
+                    ax.plot(oppelo[::-1], '.', label='opp ' + label)
                 case 'date,elo':
                     datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-                    ax.plot(datex, elo, '-', label=name)
+                    ax.plot(datex, elo, '-', label=label)
                 case 'co_pick,winrate':
                     categories = co_list_maker(rules)
                     entries = co_pick
@@ -59,10 +79,17 @@ def plot_elo():
                 case 'tier,winrate':
                     categories = ['4', '3', '2', '1', '0', '?']  # tiers
                     entries = tier
+                case 'days,winrate':
+                    categories = range(int(np.amax(days) + 1))
+                    entries = days
+
+            # plot winrate plots (teeni bit of calcs to do)
             if plot_option.split(',')[-1] == 'winrate':  # figure out winrate in % for categories
                 winc = np.zeros(len(categories))
                 losec = np.zeros(len(categories))
                 for i, e in enumerate(entries):
+                    if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
+                        continue
                     if result[i] == 1:
                         winc[categories.index(e)] += 1
                     elif result[i] == -1:
@@ -70,8 +97,18 @@ def plot_elo():
                     else:
                         # game was drawn case, wanna plot it?
                         pass
-                ax.plot(categories, (winc / (winc + losec)) * 100, 'o', label=name)
+                if gauss_filter and plot_option == 'days,winrate':  # blur
+                    sigma = 0.5
+                    winc = gaussian_filter(winc, sigma=sigma, mode='nearest')
+                    losec = gaussian_filter(losec, sigma=sigma, mode='nearest')
+                # elif plot_option == 'days,winrate':  # plot line
+                #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
+
+                ax.scatter(categories, (winc / (winc + losec)) * 100,
+                           s=10 * 100 * (winc + losec) / np.sum(winc + losec),
+                           label=label + ', ' + str(int(np.sum(winc + losec))))
                 plt.ylim([0, 100])
+                plt.yticks(np.linspace(start=0, stop=100, endpoint=True, num=11))
 
     plt.legend()
     plt.tight_layout()
@@ -84,6 +121,7 @@ def extract_elo(s):
     elo = np.zeros(table.shape[0])
     oppelo = np.zeros(table.shape[0])
     result = np.zeros(table.shape[0])
+    days = np.zeros(table.shape[0])
     tier = [None] * table.shape[0]
     date = [None] * table.shape[0]
     co_pick = [None] * table.shape[0]
@@ -122,7 +160,8 @@ def extract_elo(s):
         co_pick[i] = row[5 + (3 * player)][1:]
         co_against[i] = row[5 + (3 * (2 if player == 1 else 1))][1:]
         tier[i] = row[3][2:]
-    return elo, date, oppelo, date, result, co_pick, co_against, tier
+        days[i] = int(row[4])
+    return elo, date, oppelo, days, result, co_pick, co_against, tier
 
 
 def scrape(search):
@@ -133,12 +172,19 @@ def scrape(search):
     # offsets = [1]
     # while offsets[-1] + 200 <= int(resultbox.split(' ')[0]):
     #     offsets.append(offsets[-1] + 200)
-    offsets = [(e * 200) + 1 for e in range(int(np.ceil(int(resultbox.split(' ')[0]) / 200)))]
+    try:
+        offsets = [(e * 200) + 1 for e in range(int(np.ceil(int(resultbox.split(' ')[0]) / 200)))]
+    except ValueError:  # ValueError: invalid literal for int() with base 10: 'No'
+        with open('outputs/' + search.replace('"', '') + '.txt', "w") as file:
+            file.write(f"1; 2000-01-01; mapname; T?; 0; d; {search.split('+')[3:]} ; 0; andy; ****; 0; andy")
+            # silly. but it'll b ok?
+            return
 
-    with open(f"outputs/{search}.txt", "w") as file:
+    with open('outputs/' + search.replace('"', '') + '.txt', "w") as file:
         for offset in offsets:
             if offset != 1:
                 s = f"http://awbw.mooo.com/search?q={search}&offset={offset}"
+                # http://awbw.mooo.com/search?q=live+league+std+"ncghost12"&offset={offset}
                 # http://awbw.mooo.com/search?q=ncghost12&offset=201
                 # http://awbw.mooo.com/searchReplays.php?q=ncghost12
                 time.sleep(2)  # slows down searches on the mooo site so it doesn't get angi at me :>
@@ -179,7 +225,10 @@ def scrape(search):
                     else:
                         match item['class'][0]:
                             case 'downloadColumn':  # 0
-                                replay_link = str(item.next.attrs['href'])
+                                try:
+                                    replay_link = str(item.next.attrs['href'])
+                                except KeyError:
+                                    replay_link = 'moo/0.zip'
                             case 'nC':  # 1
                                 game_name = str(item.next.next)
                             case 'mC':  # 2
@@ -245,7 +294,7 @@ def co_list_maker(rules):
         case 'hf':
             return [
                 'adder', 'grimm', 'jake', 'jess', 'koal', 'sami', 'sonja',
-                'javier', 'kindle', 'rachel', 'sasha',
+                'javier', 'kindle', 'rachel', 'sasha', 'lash',
                 'andy', 'drake', 'grit', 'max', 'sturm', 'vonbolt',
                 'eagle', 'hawke', 'olaf', 'sensei',
                 'colin', 'hachi', 'kanbei',
