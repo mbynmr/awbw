@@ -17,11 +17,12 @@ run plot_elo() and freely change league/rules/name
 def plot_elo():
     # what do u wanna plot?
     plot_option = 'elo'  # elo on game number
-    # plot_option = 'date,elo'  # elo on date
-    plot_option = 'co_pick,winrate'  # winrate on co picked
-    plot_option = 'co_against,winrate'  # winrate on co against
+    plot_option = 'date,elo'  # elo on date
+    plot_oppelo = True
+    # plot_option = 'co_pick,winrate'  # winrate on co picked
+    # plot_option = 'co_against,winrate'  # winrate on co against
     # plot_option = 'tier,winrate'  # winrate on tier
-    plot_option = 'days,winrate'  # winrate on days of game
+    # plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
     # plot_option = 'map,co'  # map!!  # todo
     # plot_option = 'map,p1/p2 on date'  # map!!  # todo
@@ -29,17 +30,18 @@ def plot_elo():
     gauss_filter = False
 
     min_elo = 700
-    min_elo = 1100  # for winrate plots, discards ALL games that don't have BOTH players ending above this elo
+    # min_elo = 1100  # for winrate plots, discards ALL games that don't have BOTH players ending at least @ this elo
 
-    league = 'live+league'
-    # league = 'global+league'
+    # league = 'live+league'
+    league = 'global+league'
     # league = ''  # neither
 
     rulesiter = ['std']  # ['std', 'hf', 'fog']
-    nameiter = ['new1234', 'fluhfie', 'Spidy400']
+    nameiter = ['ncghost12', 'AColdOne']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
     # ['ncghost12', 'new1234', 'Heuristic']
     # ['Voice of Akasha', 'Grimm Guy', 'tesla246']
+    # ['new1234', 'fluhfie', 'Spidy400']
 
     # figure stuff
     fig, ax = plt.subplots(1)
@@ -59,17 +61,21 @@ def plot_elo():
                 print(f'scraping for {s}')
                 scrape(s)  # scrapes the mooo site for the search, saves to file
 
-            elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo(s.replace('"', ''))  # extracts stuff from file
+            # extracts stuff from file
+            elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo(s.replace('"', ''))
 
             # plot :>
             match plot_option:
                 case 'elo':
                     ax.plot(elo[::-1], '-', label=label)
-                    ax.plot(oppelo[::-1], '.', label='opp ' + label)
+                    if plot_oppelo:
+                        ax.plot(oppelo[::-1], '.', label='opp ' + label)
                 case 'date,elo':
                     datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
                     ax.plot(datex, elo, '-', label=label)
+                    if plot_oppelo:
+                        ax.plot(datex, oppelo, '.', label='opp ' + label)
                 case 'co_pick,winrate':
                     categories = co_list_maker(rules)
                     entries = co_pick
@@ -97,18 +103,21 @@ def plot_elo():
                     else:
                         # game was drawn case, wanna plot it?
                         pass
-                if gauss_filter and plot_option == 'days,winrate':  # blur
-                    sigma = 0.5
-                    winc = gaussian_filter(winc, sigma=sigma, mode='nearest')
-                    losec = gaussian_filter(losec, sigma=sigma, mode='nearest')
-                # elif plot_option == 'days,winrate':  # plot line
-                #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
+                if plot_option == 'days,winrate':
+                    plt.xlim([0, int(np.amax(days))])
+                    if gauss_filter and plot_option == 'days,winrate':  # blur
+                        sigma = 0.5
+                        winc = gaussian_filter(winc, sigma=sigma, mode='nearest')
+                        losec = gaussian_filter(losec, sigma=sigma, mode='nearest')
+                    # else:  # plot line
+                    #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
 
                 ax.scatter(categories, (winc / (winc + losec)) * 100,
                            s=10 * 100 * (winc + losec) / np.sum(winc + losec),
                            label=label + ', ' + str(int(np.sum(winc + losec))))
                 plt.ylim([0, 100])
                 plt.yticks(np.linspace(start=0, stop=100, endpoint=True, num=11))
+            # min_elo = 900
 
     plt.legend()
     plt.tight_layout()
@@ -174,11 +183,14 @@ def scrape(search):
     #     offsets.append(offsets[-1] + 200)
     try:
         offsets = [(e * 200) + 1 for e in range(int(np.ceil(int(resultbox.split(' ')[0]) / 200)))]
-    except ValueError:  # ValueError: invalid literal for int() with base 10: 'No'
-        with open('outputs/' + search.replace('"', '') + '.txt', "w") as file:
-            file.write(f"1; 2000-01-01; mapname; T?; 0; d; {search.split('+')[3:]} ; 0; andy; ****; 0; andy")
-            # silly. but it'll b ok?
-            return
+    except ValueError as e:  # ValueError: invalid literal for int() with base 10: 'No'
+        print(f"search {search} had no results")
+        print(e)
+        quit()
+        # with open('outputs/' + search.replace('"', '') + '.txt', "w") as file:
+        #     file.write(f"1; 2000-01-01; mapname; T?; 0; d; {search.split('+')[3:]} ; 0; andy; ****; 0; andy")
+        #     # silly. but it'll b ok?
+        #     return
 
     with open('outputs/' + search.replace('"', '') + '.txt', "w") as file:
         for offset in offsets:
