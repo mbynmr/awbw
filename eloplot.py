@@ -9,6 +9,8 @@ import requests
 import os.path
 import datetime as dt
 
+from fitting import fit
+
 """
 run plot_elo() and freely change league/rules/name
 """
@@ -17,8 +19,9 @@ run plot_elo() and freely change league/rules/name
 def plot_elo():
     # what do u wanna plot?
     plot_option = 'elo'  # elo on game number
-    plot_option = 'date,elo'  # elo on date
-    plot_oppelo = True
+    # plot_option = 'date,elo'  # elo on date
+    plot_oppelo = 1  # 0/False, 1/True
+    plot_fit = 2  # 0 for False, 1+ for polynomial fit order
     # plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
     # plot_option = 'tier,winrate'  # winrate on tier
@@ -27,17 +30,19 @@ def plot_elo():
     # plot_option = 'map,co'  # map!!  # todo
     # plot_option = 'map,p1/p2 on date'  # map!!  # todo
     # plot_option = 'map,days'  # map!!  # todo
-    gauss_filter = False
+    gauss_filter = False  # 0/False, 1/True
 
     min_elo = 700
-    # min_elo = 1100  # for winrate plots, discards ALL games that don't have BOTH players ending at least @ this elo
+    # min_elo = 1100  # for winrate plots, discards ALL games that don't have BOTH players ending >= this elo
 
     # league = 'live+league'
     league = 'global+league'
     # league = ''  # neither
 
-    rulesiter = ['std']  # ['std', 'hf', 'fog']
-    nameiter = ['ncghost12', 'AColdOne']
+    rulesiter = ['std', 'fog']  # ['std', 'hf', 'fog']
+    nameiter = ['M1ndC0mm4nd3r']
+    # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
+    # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
     # ['ncghost12', 'new1234', 'Heuristic']
     # ['Voice of Akasha', 'Grimm Guy', 'tesla246']
@@ -68,13 +73,19 @@ def plot_elo():
             # plot :>
             match plot_option:
                 case 'elo':
-                    ax.plot(elo[::-1], '-', label=label)
+                    ax.plot([800, *elo[::-1]], '-', label=label)
                     if plot_oppelo:
-                        ax.plot(oppelo[::-1], '.', label='opp ' + label)
+                        ax.plot([np.nan, *oppelo[::-1]], '.', label='opp ' + label)
+                    if plot_fit != 0:
+                        x = range(len([800, *elo[::-1]]))
+                        y, v = fit(x, [800, *elo[::-1]], int(plot_fit))
+                        print(v)
+                        ax.plot(x, y, '--')
                 case 'date,elo':
                     datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
                     ax.plot(datex, elo, '-', label=label)
+                    ax.plot(datex[-1], 800, 'ko')
                     if plot_oppelo:
                         ax.plot(datex, oppelo, '.', label='opp ' + label)
                 case 'co_pick,winrate':
@@ -116,6 +127,7 @@ def plot_elo():
                 ax.scatter(categories, (winc / (winc + losec)) * 100,
                            s=10 * 100 * (winc + losec) / np.sum(winc + losec),
                            label=label + ', ' + str(int(np.sum(winc + losec))))
+                ax.scatter(x=categories, y=50 * np.ones(len(categories)), marker='.', c='k')
                 plt.ylim([0, 100])
                 plt.yticks(np.linspace(start=0, stop=100, endpoint=True, num=11))
             # min_elo = 900
