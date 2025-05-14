@@ -20,8 +20,8 @@ def plot_elo():
     # what do u wanna plot?
     plot_option = 'elo'  # elo on game number
     # plot_option = 'date,elo'  # elo on date
-    plot_oppelo = 1  # 0/False, 1/True
-    plot_fit = 2  # 0 for False, 1+ for polynomial fit order
+    plot_oppelo = 0  # 0/False, 1/True
+    plot_fit = 4  # 0 for False, 1+ for polynomial fit order
     # plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
     # plot_option = 'tier,winrate'  # winrate on tier
@@ -35,12 +35,12 @@ def plot_elo():
     min_elo = 700
     # min_elo = 1100  # for winrate plots, discards ALL games that don't have BOTH players ending >= this elo
 
-    # league = 'live+league'
-    league = 'global+league'
+    league = 'live+league'
+    # league = 'global+league'
     # league = ''  # neither
 
-    rulesiter = ['std', 'fog']  # ['std', 'hf', 'fog']
-    nameiter = ['M1ndC0mm4nd3r']
+    rulesiter = ['std']  # ['std', 'hf', 'fog']
+    nameiter = ['WealthyTuna', 'new1234', 'ncghost12', 'Po2and']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -68,6 +68,7 @@ def plot_elo():
                 time.sleep(1)
 
             # extracts stuff from file
+            print('plotting ' + s.replace('"', ''))
             elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo(s.replace('"', ''))
 
             # plot :>
@@ -79,8 +80,8 @@ def plot_elo():
                     if plot_fit != 0:
                         x = range(len([800, *elo[::-1]]))
                         y, v = fit(x, [800, *elo[::-1]], int(plot_fit))
-                        print(v)
-                        ax.plot(x, y, '--')
+                        print([f'{e:.3g}' for e in v])
+                        ax.plot(x, y, 'k--', alpha=0.5)
                 case 'date,elo':
                     datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
@@ -129,7 +130,7 @@ def plot_elo():
                            label=label + ', ' + str(int(np.sum(winc + losec))))
                 ax.scatter(x=categories, y=50 * np.ones(len(categories)), marker='.', c='k')
                 plt.ylim([0, 100])
-                plt.yticks(np.linspace(start=0, stop=100, endpoint=True, num=11))
+                plt.yticks(np.arange(11) * 10)  # np.linspace(start=0, stop=100, endpoint=True, num=11)
             # min_elo = 900
 
     plt.legend()

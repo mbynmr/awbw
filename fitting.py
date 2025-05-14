@@ -15,9 +15,9 @@ def fit(x, y, order):
 
 
 def poly(x, *args):
-    y = 0
+    y = np.zeros(len(x))
     for i, arg in enumerate(args):
-        y = y + (arg * (x ** i))
+        y = y + (arg * (np.array(x) ** i))
     return y
 
 # def lorentzian(x, gamma, x0, c, a)
