@@ -12,11 +12,12 @@ import datetime as dt
 from fitting import fit
 
 """
-run plot_elo() and freely change league/rules/name
+run plotter() and freely change variables
 """
 
 
-def plot_elo():
+def plotter():
+
     # what do u wanna plot?
     plot_option = 'elo'  # elo on game number
     # plot_option = 'date,elo'  # elo on date
@@ -32,21 +33,27 @@ def plot_elo():
     # plot_option = 'map,days'  # map!!  # todo
     gauss_filter = False  # 0/False, 1/True
 
+    # for winrate plots, discards ALL games that don't have BOTH players ending >= this elo
     min_elo = 700
-    # min_elo = 1100  # for winrate plots, discards ALL games that don't have BOTH players ending >= this elo
+    # min_elo = 1100
 
     league = 'live+league'
     # league = 'global+league'
     # league = ''  # neither
 
-    rulesiter = ['std']  # ['std', 'hf', 'fog']
-    nameiter = ['WealthyTuna', 'new1234', 'ncghost12', 'Po2and']
+    rules = ['std']  # ['std', 'hf', 'fog']
+    names = ['WealthyTuna', 'new1234', 'ncghost12', 'Po2and']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
     # ['ncghost12', 'new1234', 'Heuristic']
     # ['Voice of Akasha', 'Grimm Guy', 'tesla246']
     # ['new1234', 'fluhfie', 'Spidy400']
+
+    plot_elo(plot_option, league, rules, names, min_elo, plot_oppelo, plot_fit, gauss_filter)
+
+
+def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plot_fit, gauss_filter):
 
     # figure stuff
     fig, ax = plt.subplots(1)
