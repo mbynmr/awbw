@@ -6,8 +6,8 @@ from eloplot import plotter
 
 
 def main():
-    calc()
-    # plotter()
+    # calc()
+    plotter()
 
 
 if __name__ == '__main__':

@@ -21,13 +21,14 @@ def plotter():
     # what do u wanna plot?
     plot_option = 'elo'  # elo on game number
     # plot_option = 'date,elo'  # elo on date
-    plot_oppelo = 0  # 0/False, 1/True
-    plot_fit = 4  # 0 for False, 1+ for polynomial fit order
+    plot_oppelo = 1  # 0/False, 1/True
+    plot_fit = 0  # 0 for False, 1+ for polynomial fit order
     # plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
     # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
+    # plot_option = 'days'  # days of game on game number  # todo
     # plot_option = 'map,co'  # map!!  # todo
     # plot_option = 'map,p1/p2 on date'  # map!!  # todo
     # plot_option = 'map,days'  # map!!  # todo
@@ -42,7 +43,7 @@ def plotter():
     # league = ''  # neither
 
     rules = ['std']  # ['std', 'hf', 'fog']
-    names = ['WealthyTuna', 'new1234', 'ncghost12', 'Po2and']
+    names = ['ncghost12']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -78,12 +79,21 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
             print('plotting ' + s.replace('"', ''))
             elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo(s.replace('"', ''))
 
+            # "calibrated" elo delta in case it is needed
+            delta = elo[::-1] - np.array([800, *elo[:0:-1]])
+            if len(delta) > 30:
+                delta[:31] = delta[:31] * 3 / 5
+            else:
+                delta = delta * 3 / 5
+
             # plot :>
             match plot_option:
                 case 'elo':
                     ax.plot([800, *elo[::-1]], '-', label=label)
                     if plot_oppelo:
-                        ax.plot([np.nan, *oppelo[::-1]], '.', label='opp ' + label)
+                        ax.scatter(range(len(elo) + 1), np.asarray([np.nan, *oppelo[::-1]]),
+                                   label='opp ' + label, s=np.array([1, *np.array((1 / 43) * delta ** 2)]))
+                        # todo separate into won/lost red/green (/draw) so the plot is clearer
                     if plot_fit != 0:
                         x = range(len([800, *elo[::-1]]))
                         y, v = fit(x, [800, *elo[::-1]], int(plot_fit))
@@ -95,7 +105,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                     ax.plot(datex, elo, '-', label=label)
                     ax.plot(datex[-1], 800, 'ko')
                     if plot_oppelo:
-                        ax.plot(datex, oppelo, '.', label='opp ' + label)
+                        ax.scatter(datex, oppelo, label='opp ' + label, s=np.array((1 / 43) * delta[::-1] ** 2))
                 case 'co_pick,winrate':
                     categories = co_list_maker(rules)
                     entries = co_pick
@@ -108,6 +118,20 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                 case 'days,winrate':
                     categories = range(int(np.amax(days) + 1))
                     entries = days
+                case 'days':
+                    wind = np.ones(len(days)) * np.nan
+                    losed = np.copy(wind)
+                    drawd = np.copy(wind)
+                    for i, d in enumerate(days[::-1]):
+                        if result[i] == 1:
+                            wind[i] = d
+                        elif result[i] == -1:
+                            losed[i] = d
+                        else:
+                            drawd[i] = d
+                    ax.scatter(range(len(days)), drawd, s=(elo - oppelo)[::-1] ** 2 / 500, color='b', label='draw')
+                    ax.scatter(range(len(days)), wind, s=(10 / 43) * delta ** 2, color='g', label='win')
+                    ax.scatter(range(len(days)), losed, s=(10 / 43) * delta ** 2, color='r', label='loss')
 
             # plot winrate plots (teeni bit of calcs to do)
             if plot_option.split(',')[-1] == 'winrate':  # figure out winrate in % for categories
