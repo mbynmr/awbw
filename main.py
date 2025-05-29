@@ -2,12 +2,13 @@
 # from GUI import GUI
 # from aimain import test
 from XHKO import calc
-from eloplot import plotter
+from eloplot import plotter, silly_func
 
 
 def main():
-    # calc()
-    plotter()
+    calc()
+    # plotter()
+    # silly_func()
 
 
 if __name__ == '__main__':

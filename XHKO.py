@@ -172,6 +172,7 @@ def calc():
     plt.title(f'{[e + 100 for e in u2Dv] if u2Dv.count(u2Dv[0]) != len(u2Dv) else (u2Dv[0] + 100)} def'
               f' {u2t}'
               f' on {u2Dtr if min(u2Dtr) != max(u2Dtr) else min(u2Dtr)}*')
+    plt.tight_layout()
     plt.show()
 
 
