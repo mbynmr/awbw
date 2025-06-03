@@ -140,6 +140,31 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                     ax.scatter(range(len(days)), np.where(result == -1, days, np.nan)[::-1], color='r', s=s)
                     ax.scatter(range(len(days)), np.where(result == 0, days, np.nan)[::-1], color='b',
                                s=(elo - oppelo)[::-1] ** 2 / 500)
+                case 'date,days':
+                    datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date[::-1]]
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+                    wind = np.ones(len(days)) * np.nan
+                    losed = np.ones(len(days)) * np.nan
+                    drawd = np.ones(len(days)) * np.nan
+                    for i, d in enumerate(days[::-1]):
+                        if result[i] == 1:
+                            wind[i] = d
+                        elif result[i] == -1:
+                            losed[i] = d
+                        else:
+                            drawd[i] = d
+                    resultingelochange = elo[::-1] - np.asarray([800, *elo[:0:-1]])
+                    if len(resultingelochange) > 30:
+                        # todo check fencepost problem around elo number 30.
+                        resultingelochange[:31] = resultingelochange[:31] * 30 / 50  # first 30 games are wacky elo
+                    else:
+                        resultingelochange = resultingelochange * 30 / 50
+                    # resultingelochange = resultingelochange + 42.5  # 42.45102214 maximum elo change with +/-300 elo
+                    # if np.any(resultingelochange < 0):  # edge case where +/-300 was exceeded. global league ig?
+                    #     resultingelochange = resultingelochange + np.amin(resultingelochange)
+                    ax.scatter(datex, wind, 'g', alpha=0.5, s=100 * resultingelochange)
+                    ax.scatter(datex, losed, 'r', alpha=0.5, s=-100 * resultingelochange)
+                    ax.scatter(datex, drawd, 'k', alpha=0.5, s=10 * np.abs(elo - oppelo))
 
             # plot winrate plots (teeni bit of calcs to do)
             if plot_option.split(',')[-1] == 'winrate':  # figure out winrate in % for categories
