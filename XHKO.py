@@ -25,7 +25,7 @@ def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2health, good_luck, bad_luck):
                 * (2 - (u2Dv + (u2Dtr * int(1 + u2health / 10))) / 100)  # defender defence
                 + 0.05, 5  # rounding according to awbw formula
             ))
-            if dmg_list[i] < 0:
+            if dmg_list[i] < 0:  # todo check whether this ever happens...
                 dmg_list[i] = 0
             i += 1
     return dmg_list
@@ -54,6 +54,7 @@ def calc():
           f' on {u2Dtr if min(u2Dtr) != max(u2Dtr) else min(u2Dtr)}*')
 
     plot_hp = np.arange(100)  # 0-99 x axis for plot
+    plot_hp = np.arange(200)  # 0-99 x axis for plot  # todo
     tally = np.zeros_like(plot_hp)  # corresponding tallys of how many cases are at each hp in that range
     tally[u2hp] = 1  # set initial hp (might not be 99 ig)
     dead = 0
@@ -101,7 +102,7 @@ def calc():
             if base == 0:
                 raise Exception(f"{a[0]} can't do damage to {u2t}")
 
-        for j in range(10):  # generate damage spread for all 10 visible defender health
+        for j in range(20):  # generate damage spread for all 10 visible defender health
             # hp =  j * 10 + 5 # 5, 15, ... 95 with 10 total
             if np.sum(tally_old[(j * 10):((j * 10) + 10)]) == 0:  # if the 10 tallys in this visible hp add to 0
                 continue  # saves some time.
@@ -182,9 +183,9 @@ def defender():
     # heals = {1: 'bboat', 2: 'property'}  # repair by bboat before attacker 1, sits on owned property before attacker 2
     u2t = 'inf'
     u2Dv = 0
-    # u2Dv = [10, 10, 20, 20]
+    u2Dv = [10, 0, 20, 20]
     u2Dtr = 3
-    # u2Dtr = [3, 4, 0, 1, 1]
+    u2Dtr = [0, 2, 0, 1, 1]
     u2hp = int(99)  # 99 is full, 0 is alive, -1 is dead. This way hp = the 10s didget + 1, no confusion.
     heals = {-3: 'bboat', -2: 'property1'}  # heals *before* attacker number x. multiple e.g. bboat2 to 9
     return u2t, u2Dv, u2Dtr, u2hp, heals  # u2t = str, u2hp = int(0-99), u2Dv & u2Dtr = int OR list of int, heals = dict
@@ -204,13 +205,16 @@ def luck():
 def known_hp():
     # hp is known *after* attack n. for example {1: 5} means after attacker 1, hp was set to 5
     # this removes all results that don't align to this hp and resets the cumulative KO to only count attack 2 onward
-    return {-1: 6, -2: 5, -3: 1}
+    return {1: 9, -2: 5, -3: 1}
 
 
 def attackers():  # don't do more than ~16 attacks with normal luck if most stay alive. numbers get big.
     return [
-        ['tank', 10, 99],
-        ['inf', 10, 69],
+        ['inf', 20, 29],
+        ['tank', 30, 99],
+        # ['inf', 10, 99],
+        # ['aa', 20, 99],
+        # ['inf', 0, 99],
         # ['bcopter', 10, 99],
         # ['tank', 30, 99],
         # ['inf', 30, 99],
