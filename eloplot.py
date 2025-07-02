@@ -21,13 +21,13 @@ def plotter():
 
     # what do u wanna plot?
     plot_option = 'elo'  # elo on game number
-    plot_option = 'date,elo'  # elo on date
+    # plot_option = 'date,elo'  # elo on date
     plot_oppelo = 1  # 0/False, 1/True
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
     # plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
     # plot_option = 'tier,winrate'  # winrate on tier
-    # plot_option = 'days,winrate'  # winrate on days of game
+    plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
     # plot_option = 'days'  # days of game on game number  # todo
     # plot_option = 'map,co'  # map!!  # todo
@@ -43,14 +43,15 @@ def plotter():
     # league = 'global+league'
     # league = ''  # neither
 
-    rules = ['std', 'hf', 'fog']  # ['std', 'hf', 'fog']
-    names = ['new1234']
+    rules = ['std', 'hf', 'fog'] # ['std', 'hf', 'fog']
+    names = ['DarthNoob7']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
     # ['ncghost12', 'new1234', 'Heuristic']
     # ['Voice of Akasha', 'Grimm Guy', 'tesla246']
     # ['new1234', 'fluhfie', 'Spidy400']
+    # ['Deejus_', 'GetGood', 'AdvanceNoob', 'hapahauli', 'fluhfie']
 
     plot_elo(plot_option, league, rules, names, min_elo, plot_oppelo, plot_fit, gauss_filter)
 
@@ -77,7 +78,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                 time.sleep(1)
 
             # extracts stuff from file
-            print('plotting ' + s.replace('"', ''))
+            # print('plotting ' + s.replace('"', ''))
             elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo(s.replace('"', ''))
 
             # "calibrated" elo delta in case it is needed
@@ -170,16 +171,34 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
             if plot_option.split(',')[-1] == 'winrate':  # figure out winrate in % for categories
                 winc = np.zeros(len(categories))
                 losec = np.zeros(len(categories))
+                wins = np.ones(len(entries)) * 0
+                loses = np.ones(len(entries)) * 0
                 for i, e in enumerate(entries):
                     if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
                         continue
                     if result[i] == 1:
+                        wins[i] = e
                         winc[categories.index(e)] += 1
                     elif result[i] == -1:
+                        loses[i] = e
                         losec[categories.index(e)] += 1
                     else:
                         # game was drawn case, wanna plot it?
                         pass
+
+                elodiffslinear = (300 - np.abs(oppelo - elo)) / 300
+                elodiffslinear = np.where(elodiffslinear > 0, elodiffslinear, 0)  # remove all bigger than 300 range
+                winweight = np.average(wins, weights=np.where(wins != 0, elodiffslinear, 0))
+                loseweight = np.average(loses, weights=np.where(loses != 0, elodiffslinear, 0))
+
+                winsum = 0
+                for i, e in enumerate(winc):
+                    winsum += i * e
+                losesum = 0
+                for i, e in enumerate(losec):
+                    losesum += i * e
+                print(f'{label}: {winsum / sum(winc):.1f} {losesum / sum(losec):.1f} & weight: {winweight:.1f} {loseweight:.1f}')
+
                 if plot_option == 'days,winrate':
                     plt.xlim([0, int(np.amax(days))])
                     if gauss_filter and plot_option == 'days,winrate':  # blur
@@ -198,7 +217,10 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                 plt.yticks(np.arange(11) * 10)  # np.linspace(start=0, stop=100, endpoint=True, num=11)
             # min_elo = 900
 
-    plt.legend()
+    # plt.ylim([40, 100])
+    plt.ylabel('win%')
+    plt.xlabel('days at game end')
+    plt.legend(loc='center left')
     plt.tight_layout()
     plt.grid()
     plt.show()
