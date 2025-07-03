@@ -8,9 +8,9 @@ from pixelart import pixel_art
 
 def main():
     # calc()
-    # plotter()
+    plotter()
     # silly_func()
-    pixel_art()
+    # pixel_art()
 
 
 if __name__ == '__main__':

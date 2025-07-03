@@ -40,11 +40,11 @@ def plotter():
     # min_elo = 1100
 
     league = 'live+league'
-    # league = 'global+league'
+    league = 'global+league'
     # league = ''  # neither
 
     rules = ['std', 'hf', 'fog'] # ['std', 'hf', 'fog']
-    names = ['DarthNoob7']
+    names = ['Spritemare']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']

@@ -18,9 +18,10 @@ from PIL import Image
 def pixel_art():
     folder = 'outputs/pics/nelldoro/'
     pic = "maxquality.png"
+    dims = (32, 32)
 
-    scaling_img(folder + pic)
-    img = mpimg.imread(folder + pic.split('.png')[0] + '32x32.png')
+    scaling_img(folder + pic, dims)
+    img = mpimg.imread(folder + pic.split('.png')[0] + f'{dims[0]}x{dims[1]}.png')
 
     armies = ['OS', 'BM', 'GE', 'YC', 'BH', 'RF', 'GS', 'BD', 'AB', 'JS', 'CI',
               'PC', 'TG', 'PL', 'AR', 'WN', 'AA', 'NE', 'SC']
@@ -39,9 +40,9 @@ def pixel_art():
     # plt.imsave(folder + "outputatteem1.png", img)
 
 
-def scaling_img(imgpath):
+def scaling_img(imgpath, dims):
     img = Image.open(imgpath)
-    resized_img = img.resize((32, 32))
+    resized_img = img.resize(dims)
     resized_img.save(imgpath.split('.png')[0] + '32x32.png')
 
 

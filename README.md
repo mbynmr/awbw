@@ -8,7 +8,10 @@ structure to work around an ai (needs completely redoing, is v bulky & slow)
 
 
 elo plotting:
-run plot_elo() from eloplot.py and edit league, rules, name at the start of the function
+run plotter() from eloplot.py and edit league, rules, name at the start of the function
 
 XHKO calc:
 freely set values in defender(), luck(), known_hp(), and attackers() then run calc() from XHKO.py
+
+pixel art:
+run pixel_art() from pixelart.py. idk 
