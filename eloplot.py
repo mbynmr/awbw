@@ -40,11 +40,11 @@ def plotter():
     # min_elo = 1100
 
     league = 'live+league'
-    league = 'global+league'
+    # league = 'global+league'
     # league = ''  # neither
 
     rules = ['std', 'hf', 'fog'] # ['std', 'hf', 'fog']
-    names = ['Spritemare']
+    names = ['new1234']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -188,8 +188,14 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
 
                 elodiffslinear = (300 - np.abs(oppelo - elo)) / 300
                 elodiffslinear = np.where(elodiffslinear > 0, elodiffslinear, 0)  # remove all bigger than 300 range
-                winweight = np.average(wins, weights=np.where(wins != 0, elodiffslinear, 0))
-                loseweight = np.average(loses, weights=np.where(loses != 0, elodiffslinear, 0))
+                try:
+                    winweight = np.average(wins, weights=np.where(wins != 0, elodiffslinear, 0))
+                except ZeroDivisionError:
+                    winweight = np.nan
+                try:
+                    loseweight = np.average(loses, weights=np.where(loses != 0, elodiffslinear, 0))
+                except ZeroDivisionError:
+                    loseweight = np.nan
 
                 winsum = 0
                 for i, e in enumerate(winc):
