@@ -183,9 +183,9 @@ def defender():
     # heals = {1: 'bboat', 2: 'property'}  # repair by bboat before attacker 1, sits on owned property before attacker 2
     u2t = 'inf'
     u2Dv = 0
-    u2Dv = [10, 0, 20, 20]
+    # u2Dv = [10, 0, 20, 20]
     u2Dtr = 3
-    u2Dtr = [0, 2, 0, 1, 1]
+    # u2Dtr = [0, 2, 0, 1, 1]
     u2hp = int(99)  # 99 is full, 0 is alive, -1 is dead. This way hp = the 10s didget + 1, no confusion.
     heals = {-3: 'bboat', -2: 'property1'}  # heals *before* attacker number x. multiple e.g. bboat2 to 9
     return u2t, u2Dv, u2Dtr, u2hp, heals  # u2t = str, u2hp = int(0-99), u2Dv & u2Dtr = int OR list of int, heals = dict
