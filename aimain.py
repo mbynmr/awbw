@@ -202,7 +202,7 @@ class Player:
             'bcopter','tcopter', 'bomber', 'fighter', 'stealth', 'bbomb'
         ]  # units sorted by movement type
         self.treads = [
-            'inf', 'mech', 'treads', 'treads', 'treads', 'treads', 'treads', 'treads', 'treads',
+            'inf', 'mech', 'tracks', 'tracks', 'tracks', 'tracks', 'tracks', 'tracks', 'tracks',
             'tyre', 'tyre', 'tyre',
             'pipe',
             'lander', 'lander', 'sea', 'sea', 'sea', 'sea',

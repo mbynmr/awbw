@@ -5,9 +5,9 @@ def unit_maker(army, typ, co, pos, stars=3, terr=5, hp=99,
     # stars defaults to 3 for base etc, same for terr (urban = 5)
     coname = co['name']
     types = {
-        'aa': [6, 9, 60, 0, [1, 1], 'treads', 8000],
-        'apc': [6 if coname not in ['sami', 'sensei'] else 7, 0, 60, 0, [0, 0], 'treads', 5000],
-        'arty': [5, 9, 50, 0, [2, 3], 'treads', 6000],
+        'aa': [6, 9, 60, 0, [1, 1], 'tracks', 8000],
+        'apc': [6 if coname not in ['sami', 'sensei'] else 7, 0, 60, 0, [0, 0], 'tracks', 5000],
+        'arty': [5, 9, 50, 0, [2, 3], 'tracks', 6000],
         'bcopter': [6, 6, 99, 2, [1, 1], 'air', 9000],
         'bship': [5 if coname != 'drake' else 6, 9, 99, 1, [2, 6], 'sea', 28000],
         'bboat': [7 if coname not in ['sami', 'sensei', 'drake'] else 8, -1, 50, 1, [0, 0], 'lander', 7500],
@@ -18,18 +18,18 @@ def unit_maker(army, typ, co, pos, stars=3, terr=5, hp=99,
         'fighter': [9, 9, 99, 5, [1, 1], 'air', 20000],
         'inf': [3, -1, 99, 0, [1, 1], 'inf', 1000],
         'lander': [6 if coname not in ['sami', 'sensei', 'drake'] else 7, 0, 99, 1, [0, 0], 'lander', 12000],
-        'med': [5, 8, 50, 0, [1, 1], 'treads', 16000],
+        'med': [5, 8, 50, 0, [1, 1], 'tracks', 16000],
         'mech': [2, 3, 70, 0, [1, 1], 'mech', 3000],
-        'mega': [4, 3, 50, 0, [1, 1], 'treads', 28000],
+        'mega': [4, 3, 50, 0, [1, 1], 'tracks', 28000],
         'missile': [4, 6, 50, 0, [3, 5], 'tyre', 12000],
-        'neo': [6, 9, 99, 0, [1, 1], 'treads', 22000],
+        'neo': [6, 9, 99, 0, [1, 1], 'tracks', 22000],
         'pipe': [9, 9, 99, 0, [2, 5], 'pipe', 20000],
         'recon': [8, -1, 80, 0, [1, 1], 'tyre', 4000],
         'rocket': [5, 6, 50, 0, [3, 5], 'tyre', 15000],
         'stealth': [6, 6, 60, 5, [1, 1], 'air', 24000],
         'sub': [5 if coname != 'drake' else 6, 6, 60, 1, [1, 1], 'sea', 20000],
         'tcopter': [6 if coname not in ['sami', 'sensei'] else 7, 0, 99, 2, [0, 0], 'air', 5000],
-        'tank': [6, 9, 70, 0, [1, 1], 'treads', 7000]
+        'tank': [6, 9, 70, 0, [1, 1], 'tracks', 7000]
     }  # move, ammo, fuel, fuel/day, range, tread, value
     this_unit = types[typ]
 
@@ -384,9 +384,9 @@ def junk():
         [1, 1]
     ]  # [2, 3] means ----xx-o-xx---- where o is position of the unit, - not shootable, x shootable
     tread = [
-        'treads', 'treads', 'treads', 'air', 'sea', 'lander', 'air', 'air', 'sea', 'sea', 'air', 'inf',
-        'lander', 'treads', 'mech', 'treads', 'tyre', 'treads', 'pipe', 'tyre', 'tyre', 'air', 'sea', 'air',
-        'treads'
+        'tracks', 'tracks', 'tracks', 'air', 'sea', 'lander', 'air', 'air', 'sea', 'sea', 'air', 'inf',
+        'lander', 'tracks', 'mech', 'tracks', 'tyre', 'tracks', 'pipe', 'tyre', 'tyre', 'air', 'sea', 'air',
+        'tracks'
     ]
     value = [
         8000, 5000, 6000, 9000, 28000, 7500, 25000, 22000, 30000, 18000, 20000, 1000,

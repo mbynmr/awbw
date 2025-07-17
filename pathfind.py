@@ -29,7 +29,7 @@ def check_movement(access, enemy_units, tread, move, fuel, pos1, pos2):
     # special = self.map_info[5]
     # # special - 0: misc, 1: pipeseam, 2: missile, 3: road, 4: plain, 5: urban, 6: lab&hq
     match tread:
-        case 'treads':
+        case 'tracks':
             grid = np.where(access == 0, 1, 12)  # road
             grid = np.where(access == 1, 1, grid)  # plain
             grid = np.where(access == 2, 2, grid)  # wood
