@@ -205,7 +205,7 @@ def luck():
 def known_hp():
     # hp is known *after* attack n. for example {1: 5} means after attacker 1, hp was set to 5
     # this removes all results that don't align to this hp and resets the cumulative KO to only count attack 2 onward
-    return {1: 9, -2: 5, -3: 1}
+    return {-1: 9, -2: 5, -3: 1}
 
 
 def attackers():  # don't do more than ~16 attacks with normal luck if most stay alive. numbers get big.
