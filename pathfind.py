@@ -25,28 +25,29 @@ def path_find(grid, start, end=None):
 
 def check_movement(access, enemy_units, tread, move, fuel, pos1, pos2):
     # 0: road, 1: plain, 2: wood, 3: river, 4: shoal, 5: sea, 6: pipe, 7: port, 8: base, 9: mountain, 10: reef
-    grid = np.zeros_like(access)  # todo set all to 12? grid = np.ones_like(access) * 12
+    # grid = np.zeros_like(access)  # set all to 12? grid = np.ones_like(access) * 12
+    grid = np.ones_like(access) * 12
     # special = self.map_info[5]
     # # special - 0: misc, 1: pipeseam, 2: missile, 3: road, 4: plain, 5: urban, 6: lab&hq
     match tread:
         case 'tracks':
-            grid = np.where(access == 0, 1, 12)  # road
+            grid = np.where(access == 0, 1, grid)  # road
             grid = np.where(access == 1, 1, grid)  # plain
             grid = np.where(access == 2, 2, grid)  # wood
             grid = np.where(access == 4, 1, grid)  # shoal
             grid = np.where(access == 7, 1, grid)  # port
             grid = np.where(access == 8, 1, grid)  # base
         case 'air':
-            grid = np.where(access != 6, 1, 12)  # just not pipe :>
+            grid = np.where(access != 6, 1, grid)  # just not pipe :>
         case 'sea':
-            grid = np.where(access == 5, 1, 12)
+            grid = np.where(access == 5, 1, grid)
             grid = np.where(access == 10, 2, grid)
         case 'lander':
-            grid = np.where(access == 5, 1, 12)
+            grid = np.where(access == 5, 1, grid)
             grid = np.where(access == 10, 2, grid)
             grid = np.where(access == 4, 1, grid)
         case 'inf':
-            grid = np.where(access == 0, 1, 12)
+            grid = np.where(access == 0, 1, grid)
             grid = np.where(access == 1, 1, grid)
             grid = np.where(access == 2, 1, grid)
             grid = np.where(access == 3, 2, grid)  # river
@@ -55,7 +56,7 @@ def check_movement(access, enemy_units, tread, move, fuel, pos1, pos2):
             grid = np.where(access == 8, 1, grid)
             grid = np.where(access == 9, 2, grid)  # mtn
         case 'mech':
-            grid = np.where(access == 0, 1, 12)
+            grid = np.where(access == 0, 1, grid)
             grid = np.where(access == 1, 1, grid)
             grid = np.where(access == 2, 1, grid)
             grid = np.where(access == 3, 1, grid)
@@ -64,14 +65,14 @@ def check_movement(access, enemy_units, tread, move, fuel, pos1, pos2):
             grid = np.where(access == 8, 1, grid)
             grid = np.where(access == 9, 1, grid)
         case 'tyre':
-            grid = np.where(access == 0, 1, 12)
+            grid = np.where(access == 0, 1, grid)
             grid = np.where(access == 1, 2, grid)
             grid = np.where(access == 2, 3, grid)
             grid = np.where(access == 4, 1, grid)
             grid = np.where(access == 7, 1, grid)
             grid = np.where(access == 8, 1, grid)
         case 'pipe':
-            grid = np.where(access == 6, 1, 12)
+            grid = np.where(access == 6, 1, grid)
 
     # add enemy units as blockers
     for enemy_unit in enemy_units:
