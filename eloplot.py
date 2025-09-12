@@ -26,8 +26,8 @@ def plotter():
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
     # plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
-    # plot_option = 'tier,winrate'  # winrate on tier
-    plot_option = 'days,winrate'  # winrate on days of game
+    plot_option = 'tier,winrate'  # winrate on tier
+    # plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
     # plot_option = 'days'  # days of game on game number  # todo
     # plot_option = 'map,co'  # map!!  # todo
@@ -43,8 +43,8 @@ def plotter():
     # league = 'global+league'
     # league = ''  # neither
 
-    rules = ['std', 'hf', 'fog'] # ['std', 'hf', 'fog']
-    names = ['new1234']
+    rules = ['std'] # ['std', 'hf', 'fog']
+    names = ['J.Yossarian', 'new1234', 'ncghost12']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -106,7 +106,9 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                         y, v = fit(x, [800, *elo[::-1]], int(plot_fit))
                         print([f'{e:.3g}' for e in v])
                         ax.plot(x, y, 'k--', alpha=0.5)
-                    ax.set_ylim(bottom=700)
+                    # ax.set_ylim(bottom=700)
+                    plt.xlabel('game number')
+                    plt.ylabel('elo')
                 case 'date,elo':
                     datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
@@ -123,18 +125,24 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                                    np.where(result == 0, oppelo, np.nan), color='b',
                                    s=np.abs((elo - oppelo)) / 10)
                     ax.set_ylim(bottom=700)
+                    plt.xlabel('date')
+                    plt.ylabel('elo')
                 case 'co_pick,winrate':
                     categories = co_list_maker(rules)
                     entries = co_pick
+                    plt.xlabel('CO pick')
                 case 'co_against,winrate':
                     categories = co_list_maker(rules)
                     entries = co_against
+                    plt.xlabel('opponent CO')
                 case 'tier,winrate':
                     categories = ['4', '3', '2', '1', '0', '?']  # tiers
                     entries = tier
+                    plt.xlabel('tier')
                 case 'days,winrate':
                     categories = range(int(np.amax(days) + 1))
                     entries = days
+                    plt.xlabel('days at game end')
                 case 'days':
                     s = (10 / 43) * delta ** 2
                     ax.scatter(range(len(days)), np.where(result == 1, days, np.nan)[::-1], color='g', s=s)
@@ -169,6 +177,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
 
             # plot winrate plots (teeni bit of calcs to do)
             if plot_option.split(',')[-1] == 'winrate':  # figure out winrate in % for categories
+                plt.ylabel('win%')
                 winc = np.zeros(len(categories))
                 losec = np.zeros(len(categories))
                 wins = np.ones(len(entries)) * 0
@@ -204,6 +213,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                 for i, e in enumerate(losec):
                     losesum += i * e
                 print(f'{label}: {winsum / sum(winc):.1f} {losesum / sum(losec):.1f} & weight: {winweight:.1f} {loseweight:.1f}')
+                print(f'{np.array(winc) + np.array(losec)}')  # days
 
                 if plot_option == 'days,winrate':
                     plt.xlim([0, int(np.amax(days))])
@@ -224,9 +234,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
             # min_elo = 900
 
     # plt.ylim([40, 100])
-    plt.ylabel('win%')
-    plt.xlabel('days at game end')
-    plt.legend(loc='center left')
+    plt.legend()
     plt.tight_layout()
     plt.grid()
     plt.show()
@@ -416,9 +424,9 @@ def extract_elo(s):
         # 9: p2name
         # 10: p2elo
         # 11: p2co
-        if row[6][1:-1] == s.split('+')[-1]:
+        if row[6][1:] == s.split('+')[-1]:
             player = 1
-        elif row[9][1:-1] == s.split('+')[-1]:
+        elif row[9][1:] == s.split('+')[-1]:
             player = 2
         else:
             print(row[6][1:-1])
@@ -540,19 +548,23 @@ def scrape(search):
                     p1win = True
                 w = 1 if p1win else (2 if p2win else 'd')
                 for i, item in enumerate(items):
-                    if 4 <= i <= 7:
+                    if 4 <= i <= 9:
                         match i:
                             case 4:
                                 p1_co = str(item.attrs['data-sort'])
-                            case 6:
+                            case 7:
                                 p2_co = str(item.attrs['data-sort'])
                             case 5:
                                 p1 = str(item.next.next)
-                            case 7:
+                            case 6:
+                                p1r = int(item.next)
+                            case 8:
                                 p2 = str(item.next.next)
+                            case 9:
+                                p2r = int(item.next)
                     else:
                         match item['class'][0]:
-                            case 'downloadColumn':  # 0
+                            case 'dC':  # 0
                                 try:
                                     replay_link = str(item.next.attrs['href'])
                                 except KeyError:
@@ -561,7 +573,7 @@ def scrape(search):
                                 game_name = str(item.next.next)
                             case 'mC':  # 2
                                 map_name = str(item.next.next)
-                            case 'dC':  # 8
+                            case 'daC':  # 8
                                 days = int(item.next)
                             case 'dtC':  # 9
                                 date = str(item.next)
@@ -576,7 +588,10 @@ def scrape(search):
                     tier = int(game_name[::-1].split(' ,')[1][0])
                     # Live League - mapname - (TX, rules)
                 elif game_name[0:3] == 'GL ':
-                    tier = int(game_name.split('[')[1][1])
+                    try:
+                        tier = int(game_name.split('[')[1][1])
+                    except ValueError as e:
+                        print(e)  # todo wtf? StarFlash250 breaks this January 2024 GL, idk what happen.
                     # GL rules [TX]: P1 vs P2
                 else:
                     tier = '?'  # unknown tier?
@@ -584,8 +599,8 @@ def scrape(search):
                 # saving stuff
                 # game_ID; date; map_name; tier; days; winner (1/2/d); name1; rating1; co1; name2; rating2; co2
                 a = f"{game_ID}; {date}; {map_name}; T{tier}; {days}; {w if w == 'd' else 'P' + str(w)}"
-                p1a = f"{p1[::-1].split('(')[1][::-1]}; {int(p1[::-1].split('(')[0][::-1][:-1])}; {p1_co}"
-                p2a = f"{p2[::-1].split('(')[1][::-1]}; {int(p2[::-1].split('(')[0][::-1][:-1])}; {p2_co}"
+                p1a = f"{p1}; {int(p1r)}; {p1_co}"
+                p2a = f"{p2}; {int(p2r)}; {p2_co}"
                 g = a + "; " + p1a + "; " + p2a + "\n"
                 while True:
                     try:
