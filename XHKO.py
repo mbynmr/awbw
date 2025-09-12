@@ -37,6 +37,10 @@ def reformat(var, length):
     return var[:length]
 
 
+def mean_hp(t):
+    return np.sum(np.arange(len(t)) * t) / np.sum(t)
+
+
 def calc():
     u2t, u2Dv, u2Dtr, u2hp, heals = defender()
     if u2t in ['bcopter', 'tcopter', 'fighter', 'bomber', 'stealth', 'bbomb']:
@@ -152,6 +156,7 @@ def calc():
             if i == 0:
                 quit()  # don't wanna plot if 1 attacker garantees 1HKO
             break
+        print(f'avg health after attack: {mean_hp(tally) :.4g}')
         if dead > 0:
             print(f'max possible health after attack: {np.amax(plot_hp[np.argwhere(tally > 0)]):.2g}')
             print(f'KO: {100 * ko:.10g}%')
