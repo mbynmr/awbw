@@ -238,15 +238,17 @@ def silly_func():
     # x-axis: CO
     # y-axis: rating after game
     high_elo_cutoff = {'STD': 1300, 'FOG': 1300, 'HF': 1150}
+    mapp = "Caustic Finale"
 
     # figure stuff
     fig, ax = plt.subplots(1)
     fig.autofmt_xdate()  # format the x-axis for squeezing in longer tick labels
 
-    for rules in ['STD', 'FOG', 'HF']:
+    for rules in ['STD']:  # ['STD', 'FOG', 'HF']
         # http://awbw.mooo.com/search?q=GL+STD+after+2025-05-18+rating%3E1000
-        s = f'GL+{rules}+after+2025-01-01+rating%3E{high_elo_cutoff[rules]}'
-        s = f'GL+{rules}+rating%3E{high_elo_cutoff[rules]}'
+        # s = f'GL+{rules}+after+2025-01-01+rating%3E{high_elo_cutoff[rules]}'
+        s = f'GL+{rules}+{mapp}+rating%3E{high_elo_cutoff[rules]}'
+        # s = f'GL+{rules}+rating%3E{high_elo_cutoff[rules]}'
 
         if not os.path.isfile('outputs/' + 'sillysearch' + rules + '.txt'):  # does the local file already exist?
             scrape_silly(s, rules)
@@ -265,7 +267,7 @@ def silly_func():
         # col[removers] = np.nan
 
         # plotting
-        casee = 'co,rating'  # co,win
+        casee = 'co,win'  # co,win
         match casee:
             case 'co,rating':
                 # plot of CO on x, rating on y
@@ -299,6 +301,7 @@ def silly_func():
                 plt.ylim([0, 100])
     plt.legend()
     plt.tight_layout()
+    plt.grid()
     plt.show()
 
 
