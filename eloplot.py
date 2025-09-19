@@ -11,6 +11,7 @@ import datetime as dt
 from tqdm import tqdm
 import time
 from selenium import webdriver
+import pandas as pd
 
 from fitting import fit
 
@@ -62,8 +63,8 @@ def plotter_alt():
     # what do u wanna plot?
     plot_option = 'elo'  # elo on game number
     league = 'live+league'
-    # league = 'global+league'
-    # league = 'global+league+all+time'
+    league = 'global+league'
+    league = 'global+league+all+time'
 
     rules = ['std', 'fog', 'hf']  # ['std', 'fog', 'hf']
 
@@ -74,33 +75,83 @@ def plotter_alt():
         case 'live+league':
             s = f'https://awbw.amarriner.com/live_league_standings.php?mode=std&sort=elo'
         case 'global+league':
-            s = f'https://awbw.amarriner.com/newleague_standings.php?type=std&time=curr'
+            s = f'https://awbw.amarriner.com/newleague_standings.php?time=curr'
         case 'global+league+all+time':
-            s = f'https://awbw.amarriner.com/newleague_standings.php?type=std&time=all'
+            s = f'https://awbw.amarriner.com/newleague_standings.php?time=all'
         case _:
             raise Exception(f'"{league}" was not a match for any actual league')
 
-    page = page_getter_slow(s)
-    table = page.find("table")
-    for i, row in enumerate(table.find_all('tr')):
-        if i < 5:
+    # rows = page_getter_slow(s).find("table").find_all('tr')
+    # w = np.zeros(len(rows) - 5)
+    # # pre-initialise size? or no
+    placement = []
+    name = []
+    w = []
+    l = []
+    d = []
+    std = []
+    fog = []
+    hf = []
+    for i, row in enumerate(page_getter_slow(s).find("table").find_all('tr')):
+        if i < (4 if league != 'live+league' else 5):  # header rows, don't care.
             continue
         items = row.find_all('td')
-        placement = int(str(items[0].next)[:-2])
-        name = str(items[1].next.next)[1:-1]
-        w = int(items[2].next.next)
-        l = int(items[3].next.next)
-        d = int(items[4].next.next)
-        std_elo = float(items[5].next.next)
-        std_elo = float(items[6].next.next)
-        hf_elo = float(items[7].next.next)
+        if len(items) < 5:  # if i == 104:
+            continue
+        if league != 'live+league':
+            placement.append(int(str(items[0].next)[:-1]))
+            name.append(str(items[1].next.next)[1:-1])
+            # "rating" overall GL oof
+            w .append(int(items[3].next))
+            l .append(int(items[4].next))
+            d .append(int(items[5].next))
+            if items[6].next == ' - ':
+                std.append(float(800))
+            else:
+                std.append(float(items[6].next))
+            if items[7].next == ' - ':
+                fog.append(float(800))
+            else:
+                fog.append(float(items[7].next))
+            if items[8].next == ' - ':
+                hf.append(float(800))
+            else:
+                hf.append(float(items[8].next))
+        else:
+            placement.append(int(str(items[0].next)[:-2]))
+            name.append(str(items[1].next.next)[1:-1])
+            w .append(int(items[2].next.next))
+            l .append(int(items[3].next.next))
+            d .append(int(items[4].next.next))
+            if items[5].next.next == ' - ':
+                std.append(float(800))
+            else:
+                std.append(float(items[5].next.next))
+            if items[6].next.next == ' - ':
+                fog.append(float(800))
+            else:
+                fog.append(float(items[6].next.next))
+            if items[7].next.next == ' - ':
+                hf.append(float(800))
+            else:
+                hf.append(float(items[7].next.next))
+        # pd.concat(fatt_list_of_dicts, ruleset)
+        # fatt_list_of_dicts.append({'name': name, 'w': w, 'l': l, 'd': d,
+        #                            'std': std_elo, 'fog_elo': fog_elo, 'hf_elo': hf_elo})
+    df = pd.DataFrame(data={'name': name, 'w': w, 'l': l, 'd': d,
+                            'std': std, 'fog': fog, 'hf': hf})
+    df.to_pickle(f'outputs/data/{league} {time.time()}.pkl')  # where to save it, usually as a .pkl
+    # df = pd.read_pickle(file_name)
 
     for ruleset in rules:
-    #     test = 1
-    #     test = 2
-    #     resultbox = str(page.find("div", class_="resultBox").next.next)
-    #     # ax.plot([800, *elo[::-1]], '-', label=label)
-    # plt.show()
+        sorted_df = df.sort_values(by=[ruleset])
+        ax.hist(sorted_df.get(ruleset), bins=int(np.ceil(max(sorted_df.get(ruleset)) - 800)), label=ruleset)
+    plt.yscale('log')
+    plt.xlabel('elo')
+    plt.ylabel('density/count')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
 
 
