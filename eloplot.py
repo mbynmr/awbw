@@ -100,7 +100,7 @@ def plotter_alt():
             continue
         if league != 'live+league':
             placement.append(int(str(items[0].next)[:-1]))
-            name.append(str(items[1].next.next)[1:-1])
+            name.append(str(items[1].next.next))
             # "rating" overall GL oof
             w .append(int(items[3].next))
             l .append(int(items[4].next))
