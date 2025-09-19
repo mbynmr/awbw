@@ -23,7 +23,7 @@ def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2health, good_luck, bad_luck):
                 ((base * u1Av / 100) + gl - bl)  # attacker damage
                 * (int(1 + u1hp / 10) / 10)  # attacker hp multiplier
                 * (2 - (u2Dv + (u2Dtr * int(1 + u2health / 10))) / 100)  # defender defence
-                + 0.05, 5  # rounding according to awbw formula
+                + 0.05, 5  # rounding according to formula
             ))
             if dmg_list[i] < 0:  # todo check whether this ever happens...
                 dmg_list[i] = 0
@@ -210,25 +210,16 @@ def luck():
 def known_hp():
     # hp is known *after* attack n. for example {1: 5} means after attacker 1, hp was set to 5
     # this removes all results that don't align to this hp and resets the cumulative KO to only count attack 2 onward
-    return {-1: 9, -2: 5, -3: 1}
+    return {-1: 6, -2: 1, -3: 1}
 
 
 def attackers():  # don't do more than ~16 attacks with normal luck if most stay alive. numbers get big.
     return [
-        ['inf', 20, 29],
+        ['inf', 20, 99],
         ['tank', 30, 99],
         # ['inf', 10, 99],
-        # ['aa', 20, 99],
-        # ['inf', 0, 99],
+        # ['aa', 20, 9],
         # ['bcopter', 10, 99],
-        # ['tank', 30, 99],
-        # ['inf', 30, 99],
-        # ['med', 30, 99],
-        # ['inf', 20, 99],
-        # ['tank', 20, 99],
-        # ['inf', 20, 99],
-        # ['inf', 10, 49],
-        # ['inf', 0, 99],
     ]
     # ['tank', 10, 99],  # full hp andy tank with 1 tower
     # ['aa', 10, 99],

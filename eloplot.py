@@ -56,6 +56,42 @@ def plotter():
     plot_elo(plot_option, league, rules, names, min_elo, plot_oppelo, plot_fit, gauss_filter)
 
 
+def plotter_alt():
+    # what do u wanna plot?
+    plot_option = 'elo'  # elo on game number
+    league = 'live+league'
+    # league = 'global+league'
+    # league = 'global+league+all+time'
+
+    rules = ['std', 'hf', 'fog']  # ['std', 'hf', 'fog']
+
+    fig, ax = plt.subplots(1)
+    fig.autofmt_xdate()  # format the x-axis for squeezing in longer tick labels
+
+    for ruleset in rules:
+        match league:
+            case 'live+league':
+                s = f'https://awbw.amarriner.com/live_league_standings.php?mode={ruleset}&sort=elo'
+                page = page_getter(s)
+            case 'global+league':
+                s = f'https://awbw.amarriner.com/newleague_standings.php?type={ruleset}&time=curr'
+                page = page_getter(s)
+            case 'global+league+all+time':
+                s = f'https://awbw.amarriner.com/newleague_standings.php?type={ruleset}&time=all'
+                page = page_getter(s)
+            case _:
+                raise Exception(f'"{ruleset}" was not a match for any actual ruleset (std, hf, fog)')
+
+        page.find("table").find_all('tr')[4]
+
+        test = 1
+        test = 2
+        resultbox = str(page.find("div", class_="resultBox").next.next)
+        # ax.plot([800, *elo[::-1]], '-', label=label)
+    plt.show()
+
+
+
 def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plot_fit, gauss_filter):
 
     # figure stuff
