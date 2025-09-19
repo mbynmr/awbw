@@ -79,8 +79,16 @@ def plotter_alt():
             case 'global+league+all+time':
                 s = f'https://awbw.amarriner.com/newleague_standings.php?type={ruleset}&time=all'
                 page = page_getter(s)
+            case _:
+                raise Exception(f'"{ruleset}" was not a match for any actual ruleset (std, hf, fog)')
 
+        page.find("table").find_all('tr')[4]
+
+        test = 1
+        test = 2
         resultbox = str(page.find("div", class_="resultBox").next.next)
+        # ax.plot([800, *elo[::-1]], '-', label=label)
+    plt.show()
 
 
 
