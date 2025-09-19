@@ -9,6 +9,8 @@ import requests
 import os.path
 import datetime as dt
 from tqdm import tqdm
+import time
+from selenium import webdriver
 
 from fitting import fit
 
@@ -63,32 +65,42 @@ def plotter_alt():
     # league = 'global+league'
     # league = 'global+league+all+time'
 
-    rules = ['std', 'hf', 'fog']  # ['std', 'hf', 'fog']
+    rules = ['std', 'fog', 'hf']  # ['std', 'fog', 'hf']
 
     fig, ax = plt.subplots(1)
     fig.autofmt_xdate()  # format the x-axis for squeezing in longer tick labels
 
+    match league:
+        case 'live+league':
+            s = f'https://awbw.amarriner.com/live_league_standings.php?mode=std&sort=elo'
+        case 'global+league':
+            s = f'https://awbw.amarriner.com/newleague_standings.php?type=std&time=curr'
+        case 'global+league+all+time':
+            s = f'https://awbw.amarriner.com/newleague_standings.php?type=std&time=all'
+        case _:
+            raise Exception(f'"{league}" was not a match for any actual league')
+
+    page = page_getter_slow(s)
+    table = page.find("table")
+    for i, row in enumerate(table.find_all('tr')):
+        if i < 5:
+            continue
+        items = row.find_all('td')
+        placement = int(str(items[0].next)[:-2])
+        name = str(items[1].next.next)[1:-1]
+        w = int(items[2].next.next)
+        l = int(items[3].next.next)
+        d = int(items[4].next.next)
+        std_elo = float(items[5].next.next)
+        std_elo = float(items[6].next.next)
+        hf_elo = float(items[7].next.next)
+
     for ruleset in rules:
-        match league:
-            case 'live+league':
-                s = f'https://awbw.amarriner.com/live_league_standings.php?mode={ruleset}&sort=elo'
-                page = page_getter(s)
-            case 'global+league':
-                s = f'https://awbw.amarriner.com/newleague_standings.php?type={ruleset}&time=curr'
-                page = page_getter(s)
-            case 'global+league+all+time':
-                s = f'https://awbw.amarriner.com/newleague_standings.php?type={ruleset}&time=all'
-                page = page_getter(s)
-            case _:
-                raise Exception(f'"{ruleset}" was not a match for any actual ruleset (std, hf, fog)')
-
-        page.find("table").find_all('tr')[4]
-
-        test = 1
-        test = 2
-        resultbox = str(page.find("div", class_="resultBox").next.next)
-        # ax.plot([800, *elo[::-1]], '-', label=label)
-    plt.show()
+    #     test = 1
+    #     test = 2
+    #     resultbox = str(page.find("div", class_="resultBox").next.next)
+    #     # ax.plot([800, *elo[::-1]], '-', label=label)
+    # plt.show()
 
 
 
@@ -691,3 +703,19 @@ def page_getter(url):
     page = requests.get(url)
     page.raise_for_status()
     return BeautifulSoup(page.content, features="html.parser")  # todo check parser
+
+
+def page_getter_slow(url):
+    # https://stackoverflow.com/a/45892965
+    browser = webdriver.Chrome()
+
+    browser.get(url)
+    time.sleep(5)
+    soup = BeautifulSoup(browser.page_source, features="html.parser")
+
+    # print(len(soup.find_all("table")))
+    # print(soup.find("table", {"id": "expanded_standings"}))
+
+    browser.close()
+    browser.quit()
+    return soup
