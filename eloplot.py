@@ -27,9 +27,9 @@ def plotter():
     # plot_option = 'date,elo'  # elo on date
     plot_oppelo = 1  # 0/False, 1/True
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
-    # plot_option = 'co_pick,winrate'  # winrate on co picked
+    plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
-    plot_option = 'tier,winrate'  # winrate on tier
+    # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
     # plot_option = 'days'  # days of game on game number  # todo
@@ -44,11 +44,12 @@ def plotter():
 
     league = 'live+league'
     # league = 'global+league'
-    # league = ''  # neither
+    league = ''  # all
 
-    rules = ['std'] # ['std', 'hf', 'fog']
-    names = ['J.Yossarian', 'new1234', 'ncghost12']
-    # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
+    rules = ['std', 'hf']  # ['std', 'hf', 'fog']
+    rules = ['']  # all
+    names = ['WhatIsAirport']
+    # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and', 'BongoBanjo']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
     # ['ncghost12', 'new1234', 'Heuristic']
@@ -285,10 +286,10 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                     if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
                         continue
                     if result[i] == 1:
-                        wins[i] = e
+                        # wins[i] = e
                         winc[categories.index(e)] += 1
                     elif result[i] == -1:
-                        loses[i] = e
+                        # loses[i] = e
                         losec[categories.index(e)] += 1
                     else:
                         # game was drawn case, wanna plot it?
@@ -327,6 +328,15 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                            s=10 * 100 * (winc + losec) / np.sum(winc + losec),
                            label=label + ', ' + str(int(np.sum(winc + losec))))
                 ax.scatter(x=categories, y=50 * np.ones(len(categories)), marker='.', c='k')
+                with open(f'outputs/test for {label}.txt', 'w') as file:
+                    file.write(f'CO\t\twins\tlosses\ttotal\twin%\n')
+                    for i in range(len(categories)):
+                        if len(f'{categories[i]}') < 4:
+                            file.write(f'{categories[i]} \t{int(winc[i])}\t\t{int(losec[i])}\t\t'
+                                       f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
+                        else:
+                            file.write(f'{categories[i]}\t{int(winc[i])}\t\t{int(losec[i])}\t\t'
+                                       f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
                 plt.ylim([0, 100])
                 # plt.grid(visible=True)
                 plt.yticks(np.arange(11) * 10)  # np.linspace(start=0, stop=100, endpoint=True, num=11)
@@ -341,7 +351,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
 
 # def silly func
 # all the GL CO pick data from all the profiles and plot aggro CO pick% vs rating
-def silly_func():
+def map_co_stats():
     # x-axis: CO
     # y-axis: rating after game
     high_elo_cutoff = {'STD': 1300, 'FOG': 1300, 'HF': 1150}
@@ -357,12 +367,12 @@ def silly_func():
         s = f'GL+{rules}+{mapp}+rating%3E{high_elo_cutoff[rules]}'
         # s = f'GL+{rules}+rating%3E{high_elo_cutoff[rules]}'
 
-        if not os.path.isfile('outputs/' + 'sillysearch' + rules + '.txt'):  # does the local file already exist?
-            scrape_silly(s, rules)
+        if not os.path.isfile('outputs/' + 'map_search_' + rules + '.txt'):  # does the local file already exist?
+            scrape_map(s, rules)
 
         # analysis
         categories = co_list_maker('agro')
-        days, winner, ratingw, ratingl, cow, col = retrieve_silly(rules)
+        days, winner, ratingw, ratingl, cow, col = retrieve_map(rules)
 
         # removers!
         removers = np.argwhere(days == 0)
@@ -412,7 +422,7 @@ def silly_func():
     plt.show()
 
 
-def scrape_silly(search, rules):
+def scrape_map(search, rules):
     s = "http://awbw.mooo.com/searchReplays.php?q=" + search  # &spoiler=on
     page = page_getter(s)
     resultbox = str(page.find("div", class_="resultBox").next.next)
@@ -469,7 +479,7 @@ def scrape_silly(search, rules):
                 file.write(a + "\n")
 
 
-def retrieve_silly(rules):
+def retrieve_map(rules):
     table = np.loadtxt('outputs/' + 'sillysearch' + rules + '.txt', delimiter=';', dtype=str)
 
     days = np.zeros(table.shape[0])
@@ -656,11 +666,17 @@ def scrape(search):
                             case 5:
                                 p1 = str(item.next.next)
                             case 6:
-                                p1r = int(item.next)
+                                try:
+                                    p1r = int(item.next)
+                                except TypeError:
+                                    p1r = int(0)
                             case 8:
                                 p2 = str(item.next.next)
                             case 9:
-                                p2r = int(item.next)
+                                try:
+                                    p2r = int(item.next)
+                                except TypeError:
+                                    p2r = int(0)
                     else:
                         match item['class'][0]:
                             case 'dC':  # 0
@@ -676,7 +692,7 @@ def scrape(search):
                                 days = int(item.next)
                             case 'dtC':  # 9
                                 date = str(item.next)
-                            case 'mapIColumn':
+                            case 'mapIC':
                                 pass
                             case _:
                                 print(f"unexpected item {item}")
