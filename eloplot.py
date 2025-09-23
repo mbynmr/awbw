@@ -27,9 +27,9 @@ def plotter():
     # plot_option = 'date,elo'  # elo on date
     plot_oppelo = 1  # 0/False, 1/True
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
-    # plot_option = 'co_pick,winrate'  # winrate on co picked
+    plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
-    plot_option = 'tier,winrate'  # winrate on tier
+    # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
     # plot_option = 'days'  # days of game on game number  # todo
@@ -39,7 +39,7 @@ def plotter():
     gauss_filter = False  # 0/False, 1/True
 
     # for winrate plots, discards ALL games that don't have BOTH players ending >= this elo
-    min_elo = 700
+    min_elo = 1000
     # min_elo = 1100
 
     league = 'live+league'
@@ -47,7 +47,7 @@ def plotter():
     # league = ''  # neither
 
     rules = ['std'] # ['std', 'hf', 'fog']
-    names = ['J.Yossarian', 'new1234', 'ncghost12']
+    names = ['hunch']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -59,16 +59,18 @@ def plotter():
     plot_elo(plot_option, league, rules, names, min_elo, plot_oppelo, plot_fit, gauss_filter)
 
 
-def plotter_alt():
-    # what do u wanna plot?
-    plot_option = 'elo'  # elo on game number
+def plotter_elo_distribution():
     league = 'live+league'
-    league = 'global+league'
-    league = 'global+league+all+time'
+    # league = 'global+league'
+    # league = 'global+league+all+time'
+
+    read_from_pickle = 'live+league 1758627572.4469733.pkl'
+    # read_from_pickle = ''
 
     rules = ['std', 'fog', 'hf']  # ['std', 'fog', 'hf']
 
     fig, ax = plt.subplots(1)
+    ax_percent = ax.twinx()
     fig.autofmt_xdate()  # format the x-axis for squeezing in longer tick labels
 
     match league:
@@ -81,9 +83,25 @@ def plotter_alt():
         case _:
             raise Exception(f'"{league}" was not a match for any actual league')
 
-    # rows = page_getter_slow(s).find("table").find_all('tr')
-    # w = np.zeros(len(rows) - 5)
-    # # pre-initialise size? or no
+    if read_from_pickle == '':
+        df = write_to_pickle(s, league)
+    else:
+        df = pd.read_pickle(f'outputs/data/{read_from_pickle}')
+
+    for ruleset in rules:
+        sorted_df = df.sort_values(by=[ruleset])
+        ax.hist(sorted_df.get(ruleset), bins=int(np.ceil(max(sorted_df.get(ruleset)) - 700) / 50), label=ruleset)
+        ax_percent.plot(sorted_df.get(ruleset),
+                        100 * np.cumsum(sorted_df.get(ruleset)) / np.sum(sorted_df.get(ruleset)), label=ruleset)
+    # plt.yscale('log')
+    ax.set_xlabel('elo')
+    ax.set_ylabel('density/count')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def write_to_pickle(s, league):
     placement = []
     name = []
     w = []
@@ -93,66 +111,53 @@ def plotter_alt():
     fog = []
     hf = []
     for i, row in enumerate(page_getter_slow(s).find("table").find_all('tr')):
-        if i < (4 if league != 'live+league' else 5):  # header rows, don't care.
+        if i < 4:  # header rows, don't care.
             continue
         items = row.find_all('td')
         if len(items) < 5:  # if i == 104:
             continue
-        if league != 'live+league':
+        if league != 'live+league':  # if not live league
             placement.append(int(str(items[0].next)[:-1]))
             name.append(str(items[1].next.next))
             # "rating" overall GL oof
-            w .append(int(items[3].next))
-            l .append(int(items[4].next))
-            d .append(int(items[5].next))
+            w.append(int(items[3].next))
+            l.append(int(items[4].next))
+            d.append(int(items[5].next))
             if items[6].next == ' - ':
-                std.append(float(800))
+                std.append(np.nan)
             else:
                 std.append(float(items[6].next))
             if items[7].next == ' - ':
-                fog.append(float(800))
+                fog.append(np.nan)
             else:
                 fog.append(float(items[7].next))
             if items[8].next == ' - ':
-                hf.append(float(800))
+                hf.append(np.nan)
             else:
                 hf.append(float(items[8].next))
-        else:
+        else:  # if live league
             placement.append(int(str(items[0].next)[:-2]))
             name.append(str(items[1].next.next)[1:-1])
-            w .append(int(items[2].next.next))
-            l .append(int(items[3].next.next))
-            d .append(int(items[4].next.next))
+            w.append(int(items[2].next.next))
+            l.append(int(items[3].next.next))
+            d.append(int(items[4].next.next))
             if items[5].next.next == ' - ':
-                std.append(float(800))
+                std.append(np.nan)
             else:
                 std.append(float(items[5].next.next))
             if items[6].next.next == ' - ':
-                fog.append(float(800))
+                fog.append(np.nan)
             else:
                 fog.append(float(items[6].next.next))
             if items[7].next.next == ' - ':
-                hf.append(float(800))
+                hf.append(np.nan)
             else:
                 hf.append(float(items[7].next.next))
-        # pd.concat(fatt_list_of_dicts, ruleset)
-        # fatt_list_of_dicts.append({'name': name, 'w': w, 'l': l, 'd': d,
-        #                            'std': std_elo, 'fog_elo': fog_elo, 'hf_elo': hf_elo})
     df = pd.DataFrame(data={'name': name, 'w': w, 'l': l, 'd': d,
                             'std': std, 'fog': fog, 'hf': hf})
     df.to_pickle(f'outputs/data/{league} {time.time()}.pkl')  # where to save it, usually as a .pkl
-    # df = pd.read_pickle(file_name)
-
-    for ruleset in rules:
-        sorted_df = df.sort_values(by=[ruleset])
-        ax.hist(sorted_df.get(ruleset), bins=int(np.ceil(max(sorted_df.get(ruleset)) - 800)), label=ruleset)
-    plt.yscale('log')
-    plt.xlabel('elo')
-    plt.ylabel('density/count')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
+    # df = pd.read_pickle(f'outputs/data/{league} {time.time()}.pkl')
+    return df
 
 
 def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plot_fit, gauss_filter):
@@ -285,10 +290,10 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                     if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
                         continue
                     if result[i] == 1:
-                        wins[i] = e
+                        # wins[i] = e
                         winc[categories.index(e)] += 1
                     elif result[i] == -1:
-                        loses[i] = e
+                        # loses[i] = e
                         losec[categories.index(e)] += 1
                     else:
                         # game was drawn case, wanna plot it?
@@ -323,6 +328,8 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                     # else:  # plot line
                     #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
 
+                winc = np.where(winc + losec < 5, 0, winc)
+                losec = np.where(winc + losec < 5, 0, losec)
                 ax.scatter(categories, (winc / (winc + losec)) * 100,
                            s=10 * 100 * (winc + losec) / np.sum(winc + losec),
                            label=label + ', ' + str(int(np.sum(winc + losec))))
