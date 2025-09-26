@@ -61,11 +61,14 @@ def plotter():
 
 def plotter_elo_distribution():
     league = 'live+league'
-    # league = 'global+league'
+    league = 'global+league'
     # league = 'global+league+all+time'
 
-    read_from_pickle = 'live+league 1758627572.4469733.pkl'
+    read_from_pickle = 'global+league 1758902365.9373868.pkl'
     # read_from_pickle = ''
+
+    min_games = 15  # todo
+    # min_games = 0
 
     rules = ['std', 'fog', 'hf']  # ['std', 'fog', 'hf']
 
@@ -75,7 +78,7 @@ def plotter_elo_distribution():
 
     match league:
         case 'live+league':
-            s = f'https://awbw.amarriner.com/live_league_standings.php?mode=std&sort=elo'
+            s = f'https://awbw.amarriner.com/live_league_standings.php'
         case 'global+league':
             s = f'https://awbw.amarriner.com/newleague_standings.php?time=curr'
         case 'global+league+all+time':
@@ -90,9 +93,16 @@ def plotter_elo_distribution():
 
     for ruleset in rules:
         sorted_df = df.sort_values(by=[ruleset])
-        ax.hist(sorted_df.get(ruleset), bins=int(np.ceil(max(sorted_df.get(ruleset)) - 700) / 50), label=ruleset)
-        ax_percent.plot(sorted_df.get(ruleset),
-                        100 * np.cumsum(sorted_df.get(ruleset)) / np.sum(sorted_df.get(ruleset)), label=ruleset)
+        # (data={'name': name, 'w': w, 'l': l, 'd': d, 'std': std, 'fog': fog, 'hf': hf})
+
+        excluded_mins = np.where((sorted_df.get('w') + sorted_df.get('l') + sorted_df.get('d')) >= min_games,
+                                 sorted_df.get(ruleset), np.nan)
+        if league != 'live+league':  # GL
+            excluded_mins = np.where(excluded_mins == 800, excluded_mins, np.nan)
+        else:  # LL
+            excluded_mins = excluded_mins
+        ax.hist(excluded_mins, bins=int(np.ceil(np.nanmax(excluded_mins) - 700) / 1), label=ruleset)
+        ax_percent.plot(excluded_mins, 100 * np.nancumsum(excluded_mins) / np.nansum(excluded_mins), label=ruleset)
     # plt.yscale('log')
     ax.set_xlabel('elo')
     ax.set_ylabel('density/count')
