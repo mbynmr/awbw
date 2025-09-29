@@ -60,7 +60,7 @@ def plotter():
     plot_elo(plot_option, league, rules, names, min_elo, plot_oppelo, plot_fit, gauss_filter)
 
 
-def plotter_alt():
+def plotter_standings():
     # what do u wanna plot?
     plot_option = 'elo'  # elo on game number
     league = 'live+league'
@@ -355,6 +355,7 @@ def map_co_stats():
     # x-axis: CO
     # y-axis: rating after game
     high_elo_cutoff = {'STD': 1300, 'FOG': 1300, 'HF': 1150}
+    high_elo_cutoff = None
     mapp = "Caustic Finale"
 
     # figure stuff
@@ -363,15 +364,18 @@ def map_co_stats():
 
     for rules in ['STD']:  # ['STD', 'FOG', 'HF']
         # http://awbw.mooo.com/search?q=GL+STD+after+2025-05-18+rating%3E1000
-        # s = f'GL+{rules}+after+2025-01-01+rating%3E{high_elo_cutoff[rules]}'
-        s = f'GL+{rules}+{mapp}+rating%3E{high_elo_cutoff[rules]}'
-        # s = f'GL+{rules}+rating%3E{high_elo_cutoff[rules]}'
+        if high_elo_cutoff is not None:
+            # s = f'GL+{rules}+after+2025-01-01+rating%3E{high_elo_cutoff[rules]}'
+            s = f'GL+{rules}+{mapp}+rating%3E{high_elo_cutoff[rules]}'
+            # s = f'GL+{rules}+rating%3E{high_elo_cutoff[rules]}'
+        else:
+            s = f'{rules}+{mapp}'
 
         if not os.path.isfile('outputs/' + 'map_search_' + rules + '.txt'):  # does the local file already exist?
             scrape_map(s, rules)
 
         # analysis
-        categories = co_list_maker('agro')
+        categories = co_list_maker('std')
         days, winner, ratingw, ratingl, cow, col = retrieve_map(rules)
 
         # removers!
