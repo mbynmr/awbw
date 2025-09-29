@@ -29,7 +29,8 @@ def activate_or_deactivate_power(co1, co2, power_level_change):
     # set co stats
     # remake all units
 
-    costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}
+    # costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 2}  # cart accurate?
+    costs = {0: 1, 1: 1.2, 2: 1.4, 3: 1.6, 4: 1.8, 5: 2, 6: 2.2, 7: 2.4, 8: 2.6, 9: 2.8, 10: 3}  # awbw accurate
     if power_level_change == 2:
         if co1['charge'] >= co1['SCOP'] * costs[co1['starcost']] * 9000:
             co1['charge'] -= co1['SCOP'] * costs[co1['starcost']] * 9000
