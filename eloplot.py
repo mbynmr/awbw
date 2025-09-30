@@ -27,9 +27,9 @@ def plotter():
     # plot_option = 'date,elo'  # elo on date
     plot_oppelo = 1  # 0/False, 1/True
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
-    # plot_option = 'co_pick,winrate'  # winrate on co picked
+    plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
-    plot_option = 'tier,winrate'  # winrate on tier
+    # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
     # plot_option = 'days'  # days of game on game number  # todo
@@ -60,7 +60,9 @@ def plotter():
     plot_elo(plot_option, league, rules, names, min_elo, plot_oppelo, plot_fit, gauss_filter)
 
 
-def plotter_elo_distribution():
+def plotter_standings():
+    # what do u wanna plot?
+    plot_option = 'elo'  # elo on game number
     league = 'live+league'
     league = 'global+league'
     # league = 'global+league+all+time'
