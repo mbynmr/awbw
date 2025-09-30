@@ -48,7 +48,7 @@ def plotter():
 
     rules = ['std', 'hf']  # ['std', 'hf', 'fog']
     rules = ['']  # all
-    names = ['WhatIsAirport']
+    names = ['ncghost12']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and', 'BongoBanjo']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
