@@ -172,6 +172,35 @@ def write_to_pickle(s, league):
     # df = pd.read_pickle(f'outputs/data/{league} {time.time()}.pkl')
     return df
 
+def plotter_topn(top=5):
+    df = pd.read_pickle('live+league 1759138006.0349133.pkl')
+    # (data={'name': name, 'w': w, 'l': l, 'd': d, 'std': std, 'fog': fog, 'hf': hf})
+    rules = ['std']  # ['std', 'fog', 'hf']
+
+    for ruleset in rules:
+        df.sort_values(by=[ruleset])
+        dfr = df[:top]  # todo topn like top5? top10?
+        namelist = dfr.get('name')
+        with open(f'outputs/top{int(top)}.txt') as bigtopfile:
+            for name in namelist:
+                s = f'live+league+{rules}+"{name}"'
+
+                # grab info
+                if not os.path.isfile('outputs/' + s.replace('"', '') + '.txt'):  # does the local file already exist?
+                    print(f'scraping for {s}')
+                    scrape(s)  # scrapes the mooo site for the search, saves to file
+                    time.sleep(1)
+
+                # extracts stuff from file
+                # print('plotting ' + s.replace('"', ''))
+                elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo()
+                fileee = np.loadtxt('outputs/' + s.replace('"', '') + '.txt', delimiter=';', dtype=str)
+                for line in fileee:
+                    if line[6] in namelist:
+                        if line[9] in namelist:
+                            bigtopfile.write(line)
+                    # 1477950; 2025-07-26; Tokyo Rush Hour; T4; 21; P2; fluhfie; 1255; jess; Po1and; 1422; adder
+
 
 def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plot_fit, gauss_filter):
 
@@ -196,150 +225,163 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
 
             # extracts stuff from file
             # print('plotting ' + s.replace('"', ''))
-            elo, date, oppelo, days, result, co_pick, co_against, tier = extract_elo(s.replace('"', ''))
 
-            # "calibrated" elo delta in case it is needed
-            delta = elo[::-1] - np.array([800, *elo[:0:-1]])
-            if len(delta) > 30:
-                delta[:31] = delta[:31] * 3 / 5
+            plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, gauss_filter,
+                         *extract_elo(s.replace('"', '')))
+
+    # plt.ylim([40, 100])
+    plt.legend()
+    plt.tight_layout()
+    plt.grid()
+    plt.show()
+
+
+def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, gauss_filter,
+                 elo, date, oppelo, days, result, co_pick, co_against, tier):
+
+    # "calibrated" elo delta in case it is needed
+    delta = elo[::-1] - np.array([800, *elo[:0:-1]])
+    if len(delta) > 30:
+        delta[:31] = delta[:31] * 3 / 5
+    else:
+        delta = delta * 3 / 5
+
+    # plot :>
+    match plot_option:
+        case 'elo':
+            ax.plot([800, *elo[::-1]], '-', label=label)
+            if plot_oppelo:
+                s = np.insert((1 / 43) * delta ** 2, 0, 1)
+                ax.scatter(range(len(oppelo) + 1),
+                           np.insert(np.where(result == 1, oppelo, np.nan)[::-1], 0, np.nan), color='g', s=s)
+                ax.scatter(range(len(oppelo) + 1),
+                           np.insert(np.where(result == -1, oppelo, np.nan)[::-1], 0, np.nan), color='r', s=s)
+                ax.scatter(range(len(oppelo) + 1),
+                           np.insert(np.where(result == 0, oppelo, np.nan)[::-1], 0, np.nan), color='b',
+                           s=np.insert(np.abs((elo - oppelo))[::-1] / 10, 0, 1))
+            if plot_fit != 0:
+                x = range(len([800, *elo[::-1]]))
+                y, v = fit(x, [800, *elo[::-1]], int(plot_fit))
+                print([f'{e:.3g}' for e in v])
+                ax.plot(x, y, 'k--', alpha=0.5)
+            # ax.set_ylim(bottom=700)
+            plt.xlabel('game number')
+            plt.ylabel('elo')
+        case 'date,elo':
+            datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            ax.plot(datex, elo, '-', label=label)
+            ax.plot(datex[-1], 800, 'ko')
+            if plot_oppelo:
+                s = np.array((1 / 43) * delta ** 2)
+                # ax.scatter(datex, oppelo, label='opp ' + label, s=s[::-1])
+                ax.scatter(datex,
+                           np.where(result == 1, oppelo, np.nan), color='g', s=s)
+                ax.scatter(datex,
+                           np.where(result == -1, oppelo, np.nan), color='r', s=s)
+                ax.scatter(datex,
+                           np.where(result == 0, oppelo, np.nan), color='b',
+                           s=np.abs((elo - oppelo)) / 10)
+            ax.set_ylim(bottom=700)
+            plt.xlabel('date')
+            plt.ylabel('elo')
+        case 'co_pick,winrate':
+            categories = co_list_maker(rules)
+            entries = co_pick
+            plt.xlabel('CO pick')
+        case 'co_against,winrate':
+            categories = co_list_maker(rules)
+            entries = co_against
+            plt.xlabel('opponent CO')
+        case 'tier,winrate':
+            categories = ['4', '3', '2', '1', '0', '?']  # tiers
+            entries = tier
+            plt.xlabel('tier')
+        case 'days,winrate':
+            categories = range(int(np.amax(days) + 1))
+            entries = days
+            plt.xlabel('days at game end')
+        case 'days':
+            s = (10 / 43) * delta ** 2
+            ax.scatter(range(len(days)), np.where(result == 1, days, np.nan)[::-1], color='g', s=s)
+            ax.scatter(range(len(days)), np.where(result == -1, days, np.nan)[::-1], color='r', s=s)
+            ax.scatter(range(len(days)), np.where(result == 0, days, np.nan)[::-1], color='b',
+                       s=(elo - oppelo)[::-1] ** 2 / 500)
+        case 'date,days':
+            datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date[::-1]]
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            wind = np.ones(len(days)) * np.nan
+            losed = np.ones(len(days)) * np.nan
+            drawd = np.ones(len(days)) * np.nan
+            for i, d in enumerate(days[::-1]):
+                if result[i] == 1:
+                    wind[i] = d
+                elif result[i] == -1:
+                    losed[i] = d
+                else:
+                    drawd[i] = d
+            resultingelochange = elo[::-1] - np.asarray([800, *elo[:0:-1]])
+            if len(resultingelochange) > 30:
+                # todo check fencepost problem around elo number 30.
+                resultingelochange[:31] = resultingelochange[:31] * 30 / 50  # first 30 games are wacky elo
             else:
-                delta = delta * 3 / 5
+                resultingelochange = resultingelochange * 30 / 50
+            # resultingelochange = resultingelochange + 42.5  # 42.45102214 maximum elo change with +/-300 elo
+            # if np.any(resultingelochange < 0):  # edge case where +/-300 was exceeded. global league ig?
+            #     resultingelochange = resultingelochange + np.amin(resultingelochange)
+            ax.scatter(datex, wind, 'g', alpha=0.5, s=100 * resultingelochange)
+            ax.scatter(datex, losed, 'r', alpha=0.5, s=-100 * resultingelochange)
+            ax.scatter(datex, drawd, 'k', alpha=0.5, s=10 * np.abs(elo - oppelo))
 
-            # plot :>
-            match plot_option:
-                case 'elo':
-                    ax.plot([800, *elo[::-1]], '-', label=label)
-                    if plot_oppelo:
-                        s = np.insert((1 / 43) * delta ** 2, 0, 1)
-                        ax.scatter(range(len(oppelo) + 1),
-                                   np.insert(np.where(result == 1, oppelo, np.nan)[::-1], 0, np.nan), color='g', s=s)
-                        ax.scatter(range(len(oppelo) + 1),
-                                   np.insert(np.where(result == -1, oppelo, np.nan)[::-1], 0, np.nan), color='r', s=s)
-                        ax.scatter(range(len(oppelo) + 1),
-                                   np.insert(np.where(result == 0, oppelo, np.nan)[::-1], 0, np.nan), color='b',
-                                   s=np.insert(np.abs((elo - oppelo))[::-1] / 10, 0, 1))
-                    if plot_fit != 0:
-                        x = range(len([800, *elo[::-1]]))
-                        y, v = fit(x, [800, *elo[::-1]], int(plot_fit))
-                        print([f'{e:.3g}' for e in v])
-                        ax.plot(x, y, 'k--', alpha=0.5)
-                    # ax.set_ylim(bottom=700)
-                    plt.xlabel('game number')
-                    plt.ylabel('elo')
-                case 'date,elo':
-                    datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date]
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-                    ax.plot(datex, elo, '-', label=label)
-                    ax.plot(datex[-1], 800, 'ko')
-                    if plot_oppelo:
-                        s = np.array((1 / 43) * delta ** 2)
-                        # ax.scatter(datex, oppelo, label='opp ' + label, s=s[::-1])
-                        ax.scatter(datex,
-                                   np.where(result == 1, oppelo, np.nan), color='g', s=s)
-                        ax.scatter(datex,
-                                   np.where(result == -1, oppelo, np.nan), color='r', s=s)
-                        ax.scatter(datex,
-                                   np.where(result == 0, oppelo, np.nan), color='b',
-                                   s=np.abs((elo - oppelo)) / 10)
-                    ax.set_ylim(bottom=700)
-                    plt.xlabel('date')
-                    plt.ylabel('elo')
-                case 'co_pick,winrate':
-                    categories = co_list_maker(rules)
-                    entries = co_pick
-                    plt.xlabel('CO pick')
-                case 'co_against,winrate':
-                    categories = co_list_maker(rules)
-                    entries = co_against
-                    plt.xlabel('opponent CO')
-                case 'tier,winrate':
-                    categories = ['4', '3', '2', '1', '0', '?']  # tiers
-                    entries = tier
-                    plt.xlabel('tier')
-                case 'days,winrate':
-                    categories = range(int(np.amax(days) + 1))
-                    entries = days
-                    plt.xlabel('days at game end')
-                case 'days':
-                    s = (10 / 43) * delta ** 2
-                    ax.scatter(range(len(days)), np.where(result == 1, days, np.nan)[::-1], color='g', s=s)
-                    ax.scatter(range(len(days)), np.where(result == -1, days, np.nan)[::-1], color='r', s=s)
-                    ax.scatter(range(len(days)), np.where(result == 0, days, np.nan)[::-1], color='b',
-                               s=(elo - oppelo)[::-1] ** 2 / 500)
-                case 'date,days':
-                    datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date[::-1]]
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-                    wind = np.ones(len(days)) * np.nan
-                    losed = np.ones(len(days)) * np.nan
-                    drawd = np.ones(len(days)) * np.nan
-                    for i, d in enumerate(days[::-1]):
-                        if result[i] == 1:
-                            wind[i] = d
-                        elif result[i] == -1:
-                            losed[i] = d
-                        else:
-                            drawd[i] = d
-                    resultingelochange = elo[::-1] - np.asarray([800, *elo[:0:-1]])
-                    if len(resultingelochange) > 30:
-                        # todo check fencepost problem around elo number 30.
-                        resultingelochange[:31] = resultingelochange[:31] * 30 / 50  # first 30 games are wacky elo
-                    else:
-                        resultingelochange = resultingelochange * 30 / 50
-                    # resultingelochange = resultingelochange + 42.5  # 42.45102214 maximum elo change with +/-300 elo
-                    # if np.any(resultingelochange < 0):  # edge case where +/-300 was exceeded. global league ig?
-                    #     resultingelochange = resultingelochange + np.amin(resultingelochange)
-                    ax.scatter(datex, wind, 'g', alpha=0.5, s=100 * resultingelochange)
-                    ax.scatter(datex, losed, 'r', alpha=0.5, s=-100 * resultingelochange)
-                    ax.scatter(datex, drawd, 'k', alpha=0.5, s=10 * np.abs(elo - oppelo))
+    # plot winrate plots (teeni bit of calcs to do)
+    if plot_option.split(',')[-1] == 'winrate':  # figure out winrate in % for categories
+        plt.ylabel('win%')
+        winc = np.zeros(len(categories))
+        losec = np.zeros(len(categories))
+        wins = np.ones(len(entries)) * 0
+        loses = np.ones(len(entries)) * 0
+        for i, e in enumerate(entries):
+            if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
+                continue
+            if result[i] == 1:
+                # wins[i] = e
+                winc[categories.index(e)] += 1
+            elif result[i] == -1:
+                # loses[i] = e
+                losec[categories.index(e)] += 1
+            else:
+                # game was drawn case, wanna plot it?
+                pass
 
-            # plot winrate plots (teeni bit of calcs to do)
-            if plot_option.split(',')[-1] == 'winrate':  # figure out winrate in % for categories
-                plt.ylabel('win%')
-                winc = np.zeros(len(categories))
-                losec = np.zeros(len(categories))
-                wins = np.ones(len(entries)) * 0
-                loses = np.ones(len(entries)) * 0
-                for i, e in enumerate(entries):
-                    if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
-                        continue
-                    if result[i] == 1:
-                        # wins[i] = e
-                        winc[categories.index(e)] += 1
-                    elif result[i] == -1:
-                        # loses[i] = e
-                        losec[categories.index(e)] += 1
-                    else:
-                        # game was drawn case, wanna plot it?
-                        pass
+        elodiffslinear = (300 - np.abs(oppelo - elo)) / 300
+        elodiffslinear = np.where(elodiffslinear > 0, elodiffslinear, 0)  # remove all bigger than 300 range
+        try:
+            winweight = np.average(wins, weights=np.where(wins != 0, elodiffslinear, 0))
+        except ZeroDivisionError:
+            winweight = np.nan
+        try:
+            loseweight = np.average(loses, weights=np.where(loses != 0, elodiffslinear, 0))
+        except ZeroDivisionError:
+            loseweight = np.nan
 
-                elodiffslinear = (300 - np.abs(oppelo - elo)) / 300
-                elodiffslinear = np.where(elodiffslinear > 0, elodiffslinear, 0)  # remove all bigger than 300 range
-                try:
-                    winweight = np.average(wins, weights=np.where(wins != 0, elodiffslinear, 0))
-                except ZeroDivisionError:
-                    winweight = np.nan
-                try:
-                    loseweight = np.average(loses, weights=np.where(loses != 0, elodiffslinear, 0))
-                except ZeroDivisionError:
-                    loseweight = np.nan
+        winsum = 0
+        for i, e in enumerate(winc):
+            winsum += i * e
+        losesum = 0
+        for i, e in enumerate(losec):
+            losesum += i * e
+        print(
+            f'{label}: {winsum / sum(winc):.1f} {losesum / sum(losec):.1f} & weight: {winweight:.1f} {loseweight:.1f}')
+        print(f'{np.array(winc) + np.array(losec)}')  # days
 
-                winsum = 0
-                for i, e in enumerate(winc):
-                    winsum += i * e
-                losesum = 0
-                for i, e in enumerate(losec):
-                    losesum += i * e
-                print(f'{label}: {winsum / sum(winc):.1f} {losesum / sum(losec):.1f} & weight: {winweight:.1f} {loseweight:.1f}')
-                print(f'{np.array(winc) + np.array(losec)}')  # days
-
-                if plot_option == 'days,winrate':
-                    plt.xlim([0, int(np.amax(days))])
-                    if gauss_filter and plot_option == 'days,winrate':  # blur
-                        sigma = 0.5
-                        winc = gaussian_filter(winc, sigma=sigma, mode='nearest')
-                        losec = gaussian_filter(losec, sigma=sigma, mode='nearest')
-                    # else:  # plot line
-                    #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
+        if plot_option == 'days,winrate':
+            plt.xlim([0, int(np.amax(days))])
+            if gauss_filter and plot_option == 'days,winrate':  # blur
+                sigma = 0.5
+                winc = gaussian_filter(winc, sigma=sigma, mode='nearest')
+                losec = gaussian_filter(losec, sigma=sigma, mode='nearest')
+            # else:  # plot line
+            #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
 
                 winc = np.where(winc + losec < 5, 0, winc)
                 losec = np.where(winc + losec < 5, 0, losec)
@@ -361,12 +403,6 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                 plt.yticks(np.arange(11) * 10)  # np.linspace(start=0, stop=100, endpoint=True, num=11)
             # min_elo = 900
 
-    # plt.ylim([40, 100])
-    plt.legend()
-    plt.tight_layout()
-    plt.grid()
-    plt.show()
-
 
 # def silly func
 # all the GL CO pick data from all the profiles and plot aggro CO pick% vs rating
@@ -374,6 +410,7 @@ def map_co_stats():
     # x-axis: CO
     # y-axis: rating after game
     high_elo_cutoff = {'STD': 1300, 'FOG': 1300, 'HF': 1150}
+    high_elo_cutoff = None
     mapp = "Caustic Finale"
 
     # figure stuff
@@ -382,15 +419,18 @@ def map_co_stats():
 
     for rules in ['STD']:  # ['STD', 'FOG', 'HF']
         # http://awbw.mooo.com/search?q=GL+STD+after+2025-05-18+rating%3E1000
-        # s = f'GL+{rules}+after+2025-01-01+rating%3E{high_elo_cutoff[rules]}'
-        s = f'GL+{rules}+{mapp}+rating%3E{high_elo_cutoff[rules]}'
-        # s = f'GL+{rules}+rating%3E{high_elo_cutoff[rules]}'
+        if high_elo_cutoff is not None:
+            # s = f'GL+{rules}+after+2025-01-01+rating%3E{high_elo_cutoff[rules]}'
+            s = f'GL+{rules}+{mapp}+rating%3E{high_elo_cutoff[rules]}'
+            # s = f'GL+{rules}+rating%3E{high_elo_cutoff[rules]}'
+        else:
+            s = f'{rules}+{mapp}'
 
         if not os.path.isfile('outputs/' + 'map_search_' + rules + '.txt'):  # does the local file already exist?
             scrape_map(s, rules)
 
         # analysis
-        categories = co_list_maker('agro')
+        categories = co_list_maker('std')
         days, winner, ratingw, ratingl, cow, col = retrieve_map(rules)
 
         # removers!
@@ -538,6 +578,7 @@ def extract_elo(s):
     date = [None] * table.shape[0]
     co_pick = [None] * table.shape[0]
     co_against = [None] * table.shape[0]
+    # oppname = [None] * table.shape[0]
     for i, row in enumerate(table):
         # 1421286; 2025-05-06; Roll For Initiative; T2; 15; P1; ncghost12 ; 1016; eagle; ImSpartacus811 ; 779; kindle
         # 0: gameID
@@ -576,7 +617,8 @@ def extract_elo(s):
         co_against[i] = row[5 + (3 * (2 if player == 1 else 1))][1:]
         tier[i] = row[3][2:]
         days[i] = int(row[4])
-    return elo, date, oppelo, days, result, co_pick, co_against, tier
+        # oppname[i] = str(row[3 + (3 * (2 if player == 1 else 1))])
+    return elo, date, oppelo, days, result, co_pick, co_against, tier  # , oppname
 
 
 def redo_sort(elo, date, oppelo, days, result, co_pick, co_against, tier, s):
