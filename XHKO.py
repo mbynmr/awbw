@@ -5,6 +5,15 @@ import matplotlib.pyplot as plt
 from fire import base_damage
 
 
+# todo weird awbw calculations:
+#  rounding is always done at the END
+#  sonja and kanbei 1.5x counter applies to the base damage
+#  e.g. sonja 1 tower or 10/10 from power makes the attack = 55 ((1 * 1.5) + 0.1)
+#  kanbei SCOP is especially weird. with 0 towers he gets attack = 55 * ((1.3 * 1.5) + 0.2)
+#  in general, that's overall attack = B * ((N * 1.5) + T)
+#  B = base dmg, N = native boost (always 1 for sonja or 1.3 for kanbei), T = towers + powers
+
+
 def all_damage(base, u1Av, u1hp, u2Dv, u2Dtr, u2health, good_luck, bad_luck):
     good_luck = range(good_luck)
     bad_luck = range(bad_luck if bad_luck > 1 else 1)
