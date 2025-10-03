@@ -27,7 +27,7 @@ def plotter():
     # plot_option = 'date,elo'  # elo on date
     plot_oppelo = 1  # 0/False, 1/True
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
-    plot_option = 'co_pick,winrate'  # winrate on co picked
+    # plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
     # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
@@ -44,11 +44,11 @@ def plotter():
 
     league = 'live+league'
     # league = 'global+league'
-    league = ''  # all
+    # league = ''  # all
 
-    rules = ['std', 'hf']  # ['std', 'hf', 'fog']
-    rules = ['']  # all
-    names = ['ncghost12']
+    rules = ['std']  # ['std', 'hf', 'fog']
+    # rules = ['']  # all
+    names = ['Villefort']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and', 'BongoBanjo']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -62,30 +62,38 @@ def plotter():
 
 def plotter_standings():
     # what do u wanna plot?
-    plot_option = 'elo'  # elo on game number
+    plot_option = 'elo'  # y-axis account count, x-axis elo
+    plot_option = 'gamecount,elo'  # y-axis game count, x-axis elo
+    plot_option = 'gamecount,elo,heatmap'  # y-axis game count, x-axis elo
+    # plot_option = 'gamewins,elo'  # y-axis wins, x-axis elo
+    # plot_option = 'gamelosses,elo'  # y-axis losses, x-axis elo
+    plot_option = 'win%,elo'  # y-axis win%, x-axis elo
+    # plot_option = 'win%,elo,heatmap'  # y-axis win%, x-axis elo
     league = 'live+league'
     league = 'global+league'
     # league = 'global+league+all+time'
 
-    read_from_pickle = 'global+league 1758902365.9373868.pkl'
-    # read_from_pickle = ''
+    read_from_pickle = 'global+league 1759486072.0850606.pkl'
+    read_from_pickle = ''
 
-    min_games = 15  # todo
-    # min_games = 0
+    min_games = 5  # todo
+    # min_games = 1
 
-    rules = ['std', 'fog', 'hf']  # ['std', 'fog', 'hf']
+    rules = ['std']  # ['std', 'fog', 'hf']
 
     fig, ax = plt.subplots(1)
-    ax_percent = ax.twinx()
     fig.autofmt_xdate()  # format the x-axis for squeezing in longer tick labels
 
     match league:
         case 'live+league':
             s = f'https://awbw.amarriner.com/live_league_standings.php'
+            # s = f'https://awbw.amarriner.com/live_league_standings.php?mode=std&sort=elo'
         case 'global+league':
             s = f'https://awbw.amarriner.com/newleague_standings.php?time=curr'
+            # s = f'https://awbw.amarriner.com/newleague_standings.php?time=curr&sort=std'
         case 'global+league+all+time':
             s = f'https://awbw.amarriner.com/newleague_standings.php?time=all'
+            # s = f'https://awbw.amarriner.com/newleague_standings.php?time=all&sort=std'
         case _:
             raise Exception(f'"{league}" was not a match for any actual league')
 
@@ -101,17 +109,77 @@ def plotter_standings():
         excluded_mins = np.where((sorted_df.get('w') + sorted_df.get('l') + sorted_df.get('d')) >= min_games,
                                  sorted_df.get(ruleset), np.nan)
         if league != 'live+league':  # GL
-            excluded_mins = np.where(excluded_mins == 800, excluded_mins, np.nan)
+            excluded_mins = np.where(excluded_mins == 800, np.nan, excluded_mins)
         else:  # LL
-            excluded_mins = excluded_mins
-        ax.hist(excluded_mins, bins=int(np.ceil(np.nanmax(excluded_mins) - 700) / 1), label=ruleset)
-        ax_percent.plot(excluded_mins, 100 * np.nancumsum(excluded_mins) / np.nansum(excluded_mins), label=ruleset)
-    # plt.yscale('log')
+            pass
+
+    match plot_option:
+        case 'elo':
+            ax.hist(excluded_mins, bins=int(np.ceil(np.nanmax(excluded_mins) - 700) / 20), label=ruleset)
+            ax_percent = ax.twinx()
+            ax_percent.plot(excluded_mins, 100 * np.nancumsum(excluded_mins) / np.nansum(excluded_mins), label=ruleset)
+            ax.set_ylabel('density/count')
+        case 'gamecount,elo,heatmap':
+            heatmap, xedges, yedges = np.histogram2d(
+                excluded_mins, sorted_df.get('w') + sorted_df.get('l') + sorted_df.get('d'), bins=30)
+            extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+
+            heatmap = np.log(heatmap)
+            plt.clf()
+            plt.imshow(heatmap.T, extent=extent, origin='lower')
+            plt.show()
+            quit()  # todo
+        case 'gamecount,elo':
+            ax.plot(excluded_mins, sorted_df.get('w') + sorted_df.get('l') + sorted_df.get('d'), '.', label=ruleset)
+            theory = calc_theory()
+            ax.plot(theory, np.arange(len(theory)), 'k.')
+            # ax.set_yscale('log')
+            ax.set_ylabel('game count')
+        case 'gamewins,elo':
+            ax.plot(excluded_mins, sorted_df.get('w'), '.', label=ruleset)
+            theory = calc_theory()
+            ax.plot(theory, np.arange(len(theory)), 'k.')
+            ax.set_yscale('log')
+            ax.set_ylabel('wins')
+        case 'gamelosses,elo':
+            ax.plot(excluded_mins, sorted_df.get('l'), '.', label=ruleset)
+            # ax.set_yscale('log')
+            ax.set_ylabel('losses')
+        case 'win%,elo':
+            ax.plot(
+                excluded_mins, 100 * sorted_df.get('w') / (sorted_df.get('w') + sorted_df.get('l')), '.', label=ruleset)
+            # ax.hist(excluded_mins, bins=int(np.ceil(np.nanmax(excluded_mins) - 700) / 20), label=ruleset)
+            ax.plot(excluded_mins, 100 * np.nancumsum(excluded_mins) / np.nansum(excluded_mins))
+            ax.set_ylabel('win%')
+        case 'win%,elo,heatmap':
+            heatmap, xedges, yedges = np.histogram2d(
+                excluded_mins, 100 * sorted_df.get('w') / (sorted_df.get('w') + sorted_df.get('l')), bins=30,
+                range=[[np.nanmin(excluded_mins), np.nanmax(excluded_mins)], [0, 100]])
+            extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+            # heatmap = np.log(heatmap)
+            plt.clf()
+            plt.imshow(heatmap.T, extent=extent, origin='lower')
+            plt.show()
+            plt.imsave(f'outputs/pics/{league}.png', heatmap.T)
+            quit()  # todo
+
     ax.set_xlabel('elo')
-    ax.set_ylabel('density/count')
+    plt.xticks(np.linspace(start=700, stop=1600, num=10))
+    # ax.set_ylim([0, 200])
     plt.legend()
     plt.tight_layout()
     plt.show()
+
+
+def calc_theory():
+    elo = [np.round(800, decimals=2)]
+    i = 0
+    k = 50
+    while elo[-1] < 1600:
+        if i == 30:
+            k = 30
+        elo.append(elo[-1] + np.round(k * (1 - (1 / (1 + 10 ** abs(300 / 400)))), decimals=2))
+    return np.asarray(elo[:-1])
 
 
 def write_to_pickle(s, league):
@@ -171,6 +239,7 @@ def write_to_pickle(s, league):
     df.to_pickle(f'outputs/data/{league} {time.time()}.pkl')  # where to save it, usually as a .pkl
     # df = pd.read_pickle(f'outputs/data/{league} {time.time()}.pkl')
     return df
+
 
 def plotter_topn(top=5):
     df = pd.read_pickle('live+league 1759138006.0349133.pkl')
