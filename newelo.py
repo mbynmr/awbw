@@ -1,8 +1,8 @@
 import pandas as pd
 
 
-def rebuild_leaderboard(file_path="outputs/data/matches_by_month.xlsx",
-                        output_file="outputs/data/leaderboard_by_month.xlsx"):
+def rebuild_leaderboard(file_path="outputs/data/spreadsheets/matches_by_month.xlsx",
+                        output_file="outputs/data/spreadsheets/leaderboard_by_month.xlsx"):
     # Dictionary to hold current ratings
     player_ratings = {}
 
