@@ -48,7 +48,7 @@ def plotter():
 
     rules = ['std']  # ['std', 'hf', 'fog']
     # rules = ['']  # all
-    names = ['Villefort']
+    names = ['hunch']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and', 'BongoBanjo']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -559,7 +559,7 @@ def scrape_map(search, rules):
     # while offsets[-1] + 200 <= int(resultbox.split(' ')[0]):
     #     offsets.append(offsets[-1] + 200)
     try:
-        offsets = [(e * 200) + 1 for e in range(int(np.ceil(int(resultbox.split(' ')[0]) / 200)))]
+        offsets = [(e * 500) + 1 for e in range(int(np.ceil(int(resultbox.split(' ')[0]) / 500)))]
     except ValueError as e:  # ValueError: invalid literal for int() with base 10: 'No'
         print(f"search {search} had no results")
         print(e)
@@ -745,7 +745,7 @@ def scrape(search):
     # while offsets[-1] + 200 <= int(resultbox.split(' ')[0]):
     #     offsets.append(offsets[-1] + 200)
     try:
-        offsets = [(e * 200) + 1 for e in range(int(np.ceil(int(resultbox.split(' ')[0]) / 200)))]
+        offsets = [(e * 500) + 1 for e in range(int(np.ceil(int(resultbox.split(' ')[0]) / 500)))]
     except ValueError as e:  # ValueError: invalid literal for int() with base 10: 'No'
         print(f"search {search} had no results")
         print(e)
