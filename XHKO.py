@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 # from tqdm import tqdm
 
-from fire import base_damage
+from game.fire import base_damage
 
 
 # todo weird awbw calculations:

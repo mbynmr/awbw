@@ -6,7 +6,7 @@ from tkinter import scrolledtext
 # from matplotlib.pyplot import close as matplotlibclose
 
 from XHKO import calc
-from writer import Writer
+from game.writer import Writer
 
 
 def calcGUI():  # todo needs to be a class.
