@@ -410,8 +410,10 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
         wins = np.ones(len(entries)) * 0
         loses = np.ones(len(entries)) * 0
         for i, e in enumerate(entries):
-            if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
-                continue
+            # if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
+            if oppelo[i] < min_elo or elo[i] < min_elo:  # if either player is below the minimum elo required
+                # if oppelo[i] < min_elo:  # if opponent is below the minimum elo required
+                continue  # skip this game
             if result[i] == 1:
                 # wins[i] = e
                 winc[categories.index(e)] += 1
@@ -452,8 +454,8 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
             # else:  # plot line
             #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
 
-                winc = np.where(winc + losec < 5, 0, winc)
-                losec = np.where(winc + losec < 5, 0, losec)
+                # winc = np.where(winc + losec < 5, 0, winc)
+                # losec = np.where(winc + losec < 5, 0, losec)
                 ax.scatter(categories, (winc / (winc + losec)) * 100,
                            s=10 * 100 * (winc + losec) / np.sum(winc + losec),
                            label=label + ', ' + str(int(np.sum(winc + losec))))
