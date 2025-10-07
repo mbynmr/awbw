@@ -3,6 +3,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from datetime import datetime
 
+
 def fetch_monthly_matches(start_date, end_date):
     base_url = "http://awbw.mooo.com/search"
     matches = []
@@ -66,7 +67,8 @@ def fetch_monthly_matches(start_date, end_date):
     return matches
 
 
-def scrape_years_to_sheets(start_year, end_year, output_file="matches_by_month_hf.xlsx"):
+def scrape_years_to_sheets(start_year=2024, end_year=2025,
+                           output_file="outputs/data/spreadsheets/matches_by_month_hf.xlsx"):
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         for year in range(start_year, end_year + 1):
             for month in range(1, 13):
@@ -86,8 +88,3 @@ def scrape_years_to_sheets(start_year, end_year, output_file="matches_by_month_h
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
     print(f"Finished! Data saved to {output_file}")
-
-
-if __name__ == "__main__":
-    # Example: scrape from 2024 to 2025
-    scrape_years_to_sheets(2023, 2025)
