@@ -39,6 +39,7 @@ def plotter():
     gauss_filter = False  # 0/False, 1/True
 
     # for winrate plots, discards ALL games that don't have BOTH players ending >= this elo
+    min_elo = None
     min_elo = 700
     # min_elo = 1100
 
@@ -411,9 +412,10 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
         loses = np.ones(len(entries)) * 0
         for i, e in enumerate(entries):
             # if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
-            if oppelo[i] < min_elo or elo[i] < min_elo:  # if either player is below the minimum elo required
-                # if oppelo[i] < min_elo:  # if opponent is below the minimum elo required
-                continue  # skip this game
+            if min_elo is not None:
+                if oppelo[i] < min_elo or elo[i] < min_elo:  # if either player is below the minimum elo required
+                    # if oppelo[i] < min_elo:  # if opponent is below the minimum elo required
+                    continue  # skip this game
             if result[i] == 1:
                 # wins[i] = e
                 winc[categories.index(e)] += 1
@@ -454,25 +456,25 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
             # else:  # plot line
             #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
 
-                # winc = np.where(winc + losec < 5, 0, winc)
-                # losec = np.where(winc + losec < 5, 0, losec)
-                ax.scatter(categories, (winc / (winc + losec)) * 100,
-                           s=10 * 100 * (winc + losec) / np.sum(winc + losec),
-                           label=label + ', ' + str(int(np.sum(winc + losec))))
-                ax.scatter(x=categories, y=50 * np.ones(len(categories)), marker='.', c='k')
-                with open(f'outputs/test for {label}.txt', 'w') as file:
-                    file.write(f'CO\t\twins\tlosses\ttotal\twin%\n')
-                    for i in range(len(categories)):
-                        if len(f'{categories[i]}') < 4:
-                            file.write(f'{categories[i]} \t{int(winc[i])}\t\t{int(losec[i])}\t\t'
-                                       f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
-                        else:
-                            file.write(f'{categories[i]}\t{int(winc[i])}\t\t{int(losec[i])}\t\t'
-                                       f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
-                plt.ylim([0, 100])
-                # plt.grid(visible=True)
-                plt.yticks(np.arange(11) * 10)  # np.linspace(start=0, stop=100, endpoint=True, num=11)
-            # min_elo = 900
+        # winc = np.where(winc + losec < 5, 0, winc)
+        # losec = np.where(winc + losec < 5, 0, losec)
+        ax.scatter(categories, (winc / (winc + losec)) * 100,
+                   s=10 * 100 * (winc + losec) / np.sum(winc + losec),
+                   label=label + ', ' + str(int(np.sum(winc + losec))))
+        ax.scatter(x=categories, y=50 * np.ones(len(categories)), marker='.', c='k')
+        with open(f'outputs/test for {label}.txt', 'w') as file:
+            file.write(f'CO\t\twins\tlosses\ttotal\twin%\n')
+            for i in range(len(categories)):
+                if len(f'{categories[i]}') < 4:
+                    file.write(f'{categories[i]} \t{int(winc[i])}\t\t{int(losec[i])}\t\t'
+                               f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
+                else:
+                    file.write(f'{categories[i]}\t{int(winc[i])}\t\t{int(losec[i])}\t\t'
+                               f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
+        plt.ylim([0, 100])
+        # plt.grid(visible=True)
+        plt.yticks(np.arange(11) * 10)  # np.linspace(start=0, stop=100, endpoint=True, num=11)
+        # min_elo = 900
 
 
 # def silly func
@@ -769,6 +771,7 @@ def scrape(search):
 
             table = page.find("div", class_="tableWrapper").find("table", class_="sortable").find("tbody")
             for row in table.find_all('tr'):
+                tag = False
                 # the following has p1 win and p2 lose:
                 # downloadColumn - "replay/1421134.zip" means "awbw.mooo.com/" + that
                 # nC (name)
@@ -793,8 +796,14 @@ def scrape(search):
                         match i:
                             case 4:
                                 p1_co = str(item.attrs['data-sort'])
+                                if p1_co[0] == '_':
+                                    tag = True
+                                    break
                             case 7:
                                 p2_co = str(item.attrs['data-sort'])
+                                if p2_co[0] == '_':
+                                    tag = True
+                                    break
                             case 5:
                                 p1 = str(item.next.next)
                             case 6:
@@ -829,6 +838,8 @@ def scrape(search):
                             case _:
                                 print(f"unexpected item {item}")
 
+                if tag:
+                    continue
                 # fully scraped this line, now formatting stuff
                 game_ID = replay_link.split('.zip')[0].split('/')[1]
                 if game_name[0:13] == 'Live League -':
