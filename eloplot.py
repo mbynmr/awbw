@@ -29,6 +29,7 @@ def plotter():
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
     # plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
+    plot_option = 'co_mirror,winrate'  # winrate on co (mirror)
     # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
@@ -39,15 +40,16 @@ def plotter():
     gauss_filter = False  # 0/False, 1/True
 
     # for winrate plots, discards ALL games that don't have BOTH players ending >= this elo
-    min_elo = 700
+    min_elo = None
+    # min_elo = 700
     # min_elo = 1100
 
+    league = ''  # all games
     league = 'live+league'
     # league = 'global+league'
-    # league = ''  # all
 
+    rules = ['']  # all
     rules = ['std']  # ['std', 'hf', 'fog']
-    # rules = ['']  # all
     names = ['hunch']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and', 'BongoBanjo']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
@@ -275,7 +277,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
 
     # figure stuff
     fig, ax = plt.subplots(1)
-    if plot_option in ['date,elo', 'co_pick,winrate', 'co_against,winrate', 'date,days']:
+    if plot_option in ['date,elo', 'co_pick,winrate', 'co_against,winrate', 'co_mirror,winrate', 'date,days']:
         fig.autofmt_xdate()  # format the x-axis for squeezing in longer tick labels
 
     for rules in rulesiter:
@@ -362,6 +364,10 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
             categories = co_list_maker(rules)
             entries = co_against
             plt.xlabel('opponent CO')
+        case 'co_mirror,winrate':
+            categories = co_list_maker(rules)
+            entries = co_pick
+            plt.xlabel('CO mirror')
         case 'tier,winrate':
             categories = ['4', '3', '2', '1', '0', '?']  # tiers
             entries = tier
@@ -410,10 +416,13 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
         wins = np.ones(len(entries)) * 0
         loses = np.ones(len(entries)) * 0
         for i, e in enumerate(entries):
-            # if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
-            if oppelo[i] < min_elo or elo[i] < min_elo:  # if either player is below the minimum elo required
-                # if oppelo[i] < min_elo:  # if opponent is below the minimum elo required
-                continue  # skip this game
+            if min_elo is not None:
+                # if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
+                if oppelo[i] < min_elo or elo[i] < min_elo:  # if either player is below the minimum elo required
+                    # if oppelo[i] < min_elo:  # if opponent is below the minimum elo required
+                    continue  # skip this game
+            if plot_option == 'co_mirror,winrate' and co_pick[i] != co_against[i]:
+                continue  # we only want mirrors and this entry is not
             if result[i] == 1:
                 # wins[i] = e
                 winc[categories.index(e)] += 1
@@ -443,7 +452,7 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
             losesum += i * e
         print(
             f'{label}: {winsum / sum(winc):.1f} {losesum / sum(losec):.1f} & weight: {winweight:.1f} {loseweight:.1f}')
-        print(f'{np.array(winc) + np.array(losec)}')  # days
+        print(f'{np.array(winc) + np.array(losec)}')  # sum
 
         if plot_option == 'days,winrate':
             plt.xlim([0, int(np.amax(days))])
@@ -454,25 +463,25 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
             # else:  # plot line
             #     ax.plot(categories, (winc / (winc + losec)) * 100, '-')
 
-                # winc = np.where(winc + losec < 5, 0, winc)
-                # losec = np.where(winc + losec < 5, 0, losec)
-                ax.scatter(categories, (winc / (winc + losec)) * 100,
-                           s=10 * 100 * (winc + losec) / np.sum(winc + losec),
-                           label=label + ', ' + str(int(np.sum(winc + losec))))
-                ax.scatter(x=categories, y=50 * np.ones(len(categories)), marker='.', c='k')
-                with open(f'outputs/test for {label}.txt', 'w') as file:
-                    file.write(f'CO\t\twins\tlosses\ttotal\twin%\n')
-                    for i in range(len(categories)):
-                        if len(f'{categories[i]}') < 4:
-                            file.write(f'{categories[i]} \t{int(winc[i])}\t\t{int(losec[i])}\t\t'
-                                       f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
-                        else:
-                            file.write(f'{categories[i]}\t{int(winc[i])}\t\t{int(losec[i])}\t\t'
-                                       f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
-                plt.ylim([0, 100])
-                # plt.grid(visible=True)
-                plt.yticks(np.arange(11) * 10)  # np.linspace(start=0, stop=100, endpoint=True, num=11)
-            # min_elo = 900
+        # winc = np.where(winc + losec < 5, 0, winc)
+        # losec = np.where(winc + losec < 5, 0, losec)
+        ax.scatter(categories, (winc / (winc + losec)) * 100,
+                   s=10 * 100 * (winc + losec) / np.sum(winc + losec),
+                   label=label + ', ' + str(int(np.sum(winc + losec))))
+        ax.scatter(x=categories, y=50 * np.ones(len(categories)), marker='.', c='k')
+        with open(f'outputs/test for {label}.txt', 'w') as file:
+            file.write(f'CO\t\twins\tlosses\ttotal\twin%\n')
+            for i in range(len(categories)):
+                if len(f'{categories[i]}') < 4:
+                    file.write(f'{categories[i]} \t{int(winc[i])}\t\t{int(losec[i])}\t\t'
+                               f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
+                else:
+                    file.write(f'{categories[i]}\t{int(winc[i])}\t\t{int(losec[i])}\t\t'
+                               f'{int(winc[i] + losec[i])}\t\t{100 * (winc[i] / (winc[i] + losec[i])):.4g}\n')
+        plt.ylim([0, 100])
+        # plt.grid(visible=True)
+        plt.yticks(np.arange(11) * 10)  # np.linspace(start=0, stop=100, endpoint=True, num=11)
+        # min_elo = 900
 
 
 # def silly func
