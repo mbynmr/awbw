@@ -778,6 +778,7 @@ def scrape(search):
 
             table = page.find("div", class_="tableWrapper").find("table", class_="sortable").find("tbody")
             for row in table.find_all('tr'):
+                tag = False
                 # the following has p1 win and p2 lose:
                 # downloadColumn - "replay/1421134.zip" means "awbw.mooo.com/" + that
                 # nC (name)
@@ -802,8 +803,14 @@ def scrape(search):
                         match i:
                             case 4:
                                 p1_co = str(item.attrs['data-sort'])
+                                if p1_co[0] == '_':
+                                    tag = True
+                                    break
                             case 7:
                                 p2_co = str(item.attrs['data-sort'])
+                                if p2_co[0] == '_':
+                                    tag = True
+                                    break
                             case 5:
                                 p1 = str(item.next.next)
                             case 6:
@@ -838,6 +845,8 @@ def scrape(search):
                             case _:
                                 print(f"unexpected item {item}")
 
+                if tag:
+                    continue
                 # fully scraped this line, now formatting stuff
                 game_ID = replay_link.split('.zip')[0].split('/')[1]
                 if game_name[0:13] == 'Live League -':
