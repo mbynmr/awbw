@@ -40,16 +40,17 @@ def plotter():
 
     # for winrate plots, discards ALL games that don't have BOTH players ending >= this elo
     min_elo = None
-    min_elo = 700
+    # min_elo = 700
     # min_elo = 1100
 
+    league = ''  # all
+    # league = 'live+queue'
     league = 'live+league'
     # league = 'global+league'
-    # league = ''  # all
 
-    rules = ['std']  # ['std', 'hf', 'fog']
+    rules = ['hf']  # ['std', 'hf', 'fog']
     # rules = ['']  # all
-    names = ['hunch']
+    names = ['joltspikes', 'new1234', 'hunch']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and', 'BongoBanjo']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -300,7 +301,8 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
                          *extract_elo(s.replace('"', '')))
 
     # plt.ylim([40, 100])
-    plt.legend()
+    # plt.legend()
+    plt.legend(loc='lower center')
     plt.tight_layout()
     plt.grid()
     plt.show()
