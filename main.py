@@ -9,7 +9,7 @@ from base64images import converter
 
 
 def main():
-    # calc()
+    calc()
     # plotter()
     # plotter_standings()
     # map_co_stats()
@@ -17,7 +17,7 @@ def main():
     # converter()
     # rebuild_leaderboard()
     # scrape_years_to_sheets()
-    plotter_standings_new()
+    # plotter_standings_new()
 
 
 if __name__ == '__main__':

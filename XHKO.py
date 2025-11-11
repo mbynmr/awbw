@@ -224,8 +224,9 @@ def known_hp():
 
 def attackers():  # don't do more than ~16 attacks with normal luck if most stay alive. numbers get big.
     return [
-        ['inf', 20, 99],
-        ['tank', 30, 99],
+        ['inf', 0, 99],
+        ['inf', 0, 99],
+        ['tank', 0, 19],
         # ['inf', 10, 99],
         # ['aa', 20, 9],
         # ['bcopter', 10, 99],

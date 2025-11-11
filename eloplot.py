@@ -29,7 +29,7 @@ def plotter():
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
     # plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
-    plot_option = 'co_mirror,winrate'  # winrate on co (mirror)
+    # plot_option = 'co_mirror,winrate'  # winrate on co (mirror)
     # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
@@ -51,7 +51,7 @@ def plotter():
 
     rules = ['']  # all
     rules = ['std']  # ['std', 'hf', 'fog']
-    names = ['hunch']
+    names = ['ncghost12']
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and', 'BongoBanjo']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
