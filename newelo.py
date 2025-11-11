@@ -1,12 +1,22 @@
 import pandas as pd
+import numpy as np
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 
 
 def plotter_standings_new():
-    pass
-    # xls = pd.ExcelFile(file_path)
+    input_file = "outputs/data/spreadsheets/leaderboard_by_month.xlsx"
+
+    xls = pd.ExcelFile(input_file)
+    sheets = sorted(xls.sheet_names)
+    tracker = np.zeros(len(sheets))
+    for i, sheet in enumerate(sheets):
+        df = pd.read_excel(input_file, sheet_name=sheet)
+        all_ratings = np.array(list(df.get('Rating')))
+        # tracker[i] = np.mean(all_ratings)
+        tracker[i] = np.percentile(all_ratings, 99.5)
+    print(tracker)
 
 
 def fetch_monthly_matches(start_date, end_date):

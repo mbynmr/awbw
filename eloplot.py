@@ -45,6 +45,7 @@ def plotter():
     # min_elo = 1100
 
     league = ''  # all games
+    # league = 'live+queue'
     league = 'live+league'
     # league = 'global+league'
 
@@ -302,6 +303,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
 
     # plt.ylim([40, 100])
     plt.legend()
+    # plt.legend(loc='lower center')
     plt.tight_layout()
     plt.grid()
     plt.show()
@@ -417,7 +419,6 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
         loses = np.ones(len(entries)) * 0
         for i, e in enumerate(entries):
             if min_elo is not None:
-                # if oppelo[i] < min_elo or elo[i] < min_elo:  # todo
                 if oppelo[i] < min_elo or elo[i] < min_elo:  # if either player is below the minimum elo required
                     # if oppelo[i] < min_elo:  # if opponent is below the minimum elo required
                     continue  # skip this game
