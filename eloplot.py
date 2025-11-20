@@ -32,6 +32,7 @@ def plotter():
     # plot_option = 'co_mirror,winrate'  # winrate on co (mirror)
     # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
+    plot_option = 'elo,donated'  # winrate on days of game
     # plot_option = 'date,days'  # days of game on date  # todo
     # plot_option = 'days'  # days of game on game number  # todo
     # plot_option = 'map,co'  # map!!  # todo
@@ -310,7 +311,7 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
 
 
 def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, gauss_filter,
-                 elo, date, oppelo, days, result, co_pick, co_against, tier):
+                 elo, date, oppelo, days, result, co_pick, co_against, tier, oppname):
 
     # "calibrated" elo delta in case it is needed
     delta = elo[::-1] - np.array([800, *elo[:0:-1]])
@@ -384,6 +385,28 @@ def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, 
             ax.scatter(range(len(days)), np.where(result == -1, days, np.nan)[::-1], color='r', s=s)
             ax.scatter(range(len(days)), np.where(result == 0, days, np.nan)[::-1], color='b',
                        s=(elo - oppelo)[::-1] ** 2 / 500)
+        case 'elo,donated':
+            # open a game, is it a new player?
+            # if new, add to list, add elo
+            # if existing, add elo
+            # save to txt.
+            elodic = {}
+            elo = elo[::-1]
+            for i, opponent in enumerate(oppname[::-1]):
+                # print(elodic)
+                if i == 0:
+                    elodic.update({opponent: int(elo[i] - 800)})
+                    continue
+                if opponent in elodic:
+                    elodic[opponent] = elodic[opponent] + int(elo[i] - elo[i - 1])
+                else:
+                    elodic.update({opponent: int(elo[i] - elo[i - 1])})
+            # np.savetxt('outputs/donos.txt', elodic)
+
+            elodic = dict(sorted(elodic.items(), key=lambda item: item[1]))
+            with open('outputs/donos.txt', 'w') as file:
+                for k, v in elodic.items():
+                   file.write(str(v) + ':\t' + str(k) + '\n')
         case 'date,days':
             datex = [dt.datetime.strptime(d, '%Y-%m-%d').date() for d in date[::-1]]
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
@@ -662,7 +685,7 @@ def extract_elo(s):
     date = [None] * table.shape[0]
     co_pick = [None] * table.shape[0]
     co_against = [None] * table.shape[0]
-    # oppname = [None] * table.shape[0]
+    oppname = [None] * table.shape[0]
     for i, row in enumerate(table):
         # 1421286; 2025-05-06; Roll For Initiative; T2; 15; P1; ncghost12 ; 1016; eagle; ImSpartacus811 ; 779; kindle
         # 0: gameID
@@ -701,8 +724,8 @@ def extract_elo(s):
         co_against[i] = row[5 + (3 * (2 if player == 1 else 1))][1:]
         tier[i] = row[3][2:]
         days[i] = int(row[4])
-        # oppname[i] = str(row[3 + (3 * (2 if player == 1 else 1))])
-    return elo, date, oppelo, days, result, co_pick, co_against, tier  # , oppname
+        oppname[i] = str(row[3 + (3 * (2 if player == 1 else 1))])[1:]
+    return elo, date, oppelo, days, result, co_pick, co_against, tier, oppname
 
 
 def redo_sort(elo, date, oppelo, days, result, co_pick, co_against, tier, s):
