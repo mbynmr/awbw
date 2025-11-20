@@ -650,6 +650,9 @@ def retrieve_map(rules):
 
 def extract_elo(s):
     table = np.loadtxt('outputs/' + s + '.txt', delimiter=';', dtype=str)
+    if len(table.shape) != 2:
+        print(f"only 1 result: {table}")
+        quit()
 
     elo = np.zeros(table.shape[0])
     oppelo = np.zeros(table.shape[0])
