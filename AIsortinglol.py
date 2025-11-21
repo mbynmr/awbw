@@ -49,6 +49,8 @@ def is_game_possible(Ra_before, game, games_played, elo_floor=None, tol=0.5):
     predicted_delta = elo_change(Ra_before, Rb_before, result, K)
 
     # Step 4: consistency check
+    if abs(predicted_delta - observed_delta) < 10:
+        print(abs(predicted_delta - observed_delta))
     return abs(predicted_delta - observed_delta) <= tol
 
 

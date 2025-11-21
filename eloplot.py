@@ -12,8 +12,10 @@ from tqdm import tqdm
 import time
 from selenium import webdriver
 import pandas as pd
+import itertools as iter
 
 from fitting import fit
+from AIsortinglol import sort_games_by_actual_order
 
 """
 run plotter() and freely change variables
@@ -48,7 +50,7 @@ def plotter():
     league = ''  # all games
     # league = 'live+queue'
     league = 'live+league'
-    # league = 'global+league'
+    league = 'global+league'
 
     rules = ['']  # all
     rules = ['std']  # ['std', 'hf', 'fog']
@@ -312,6 +314,8 @@ def plot_elo(plot_option, league, rulesiter, nameiter, min_elo, plot_oppelo, plo
 
 def plot_options(ax, plot_option, label, rules, plot_oppelo, plot_fit, min_elo, gauss_filter,
                  elo, date, oppelo, days, result, co_pick, co_against, tier, oppname):
+    elo, date, oppelo, days, result, co_pick, co_against, tier = redo_sort(
+        elo, date, oppelo, days, result, co_pick, co_against, tier)
 
     # "calibrated" elo delta in case it is needed
     delta = elo[::-1] - np.array([800, *elo[:0:-1]])
@@ -728,18 +732,56 @@ def extract_elo(s):
     return elo, date, oppelo, days, result, co_pick, co_against, tier, oppname
 
 
-def redo_sort(elo, date, oppelo, days, result, co_pick, co_against, tier, s):
-    # if s.split('+')[-1] == 'noname':  # todo?
-    #     return elo, date, oppelo, days, result, co_pick, co_against, tier
-    for i, e in enumerate(elo):
-        if i == 0:
-            continue
+def redo_sort(elo, date, oppelo, days, result, co_pick, co_against, tier):
+    # checks every permutation of games and finds the one that matches the real elo seen the closest. rounding hurts!
+    # order = np.arange(len(elo))
+    # i = 0
+    # for perm in tqdm(iter.permutations(order)):
+    #     elop = elo[order]
+    #     oppelop = oppelo[order]
+    #     resultp = result[order]
+    #     elochecks = [800]  # todo gna break if i put a date cutoff.
+    #     k = 50
+    #     for j in len(order):
+    #         if j == 30:
+    #             k = 30
+    #         elochecks.append(elochecks[-1] + exchange)
+    #     if np.all(difs <= 1):
+    #         break
+    #     i += 1
+    # final_order = order
+
+    # # if s.split('+')[-1] == 'noname':  # todo
+    # #     return elo, date, oppelo, days, result, co_pick, co_against, tier
+    # for i, e in enumerate(elo):
+    #     if i == 0:
+    #         continue
+    #     if result[i] == 1:
+    #         elodiff = 1  # win
+    #     elif result[i] == -1:
+    #         elodiff = 1  # loss
+    #     print(f'{elodiff} vs {e - elo[i - 1]}')
+    #     a = calc_elo_exchanged(elo, oppelo, result)  # wrong inputs ik
+
+    scrambled_games = []
+    for i in range(len(elo)):
         if result[i] == 1:
-            elodiff = 1  # win
+            res = 1
         elif result[i] == -1:
-            elodiff = 1  # loss
-        print(f'{elodiff} vs {e - elo[i - 1]}')
-        a = calc_elo_exchanged(elo, oppelo, result)  # wrong inputs ik
+            res = 0
+        else:
+            res = 0.5
+        scrambled_games.append((int(elo[i]), int(oppelo[i]), res))  # (elo, oppelo, result)
+    ordered, indexes = sort_games_by_actual_order(scrambled_games[::-1], elo_floor=700, tol=5)
+
+    elo = elo[indexes]
+    date = date[indexes]
+    oppelo = oppelo[indexes]
+    days = days[indexes]
+    result = result[indexes]
+    co_pick = co_pick[indexes]
+    co_against = co_against[indexes]
+    tier = tier[indexes]
     return elo, date, oppelo, days, result, co_pick, co_against, tier
 
 
