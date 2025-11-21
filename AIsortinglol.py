@@ -1,5 +1,6 @@
 import math
 
+
 # -------------------------------------------------------------
 # ELO HELPERS
 # -------------------------------------------------------------
@@ -8,10 +9,12 @@ def expected_score(Ra, Rb):
     """Compute expected score for player A"""
     return 1 / (1 + 10 ** ((Rb - Ra) / 400))
 
+
 def elo_change(Ra, Rb, Sa, K):
     """Compute delta Elo for player A (positive if A gains)"""
     Ea = expected_score(Ra, Rb)
     return K * (Sa - Ea)
+
 
 # -------------------------------------------------------------
 # RECONSTRUCTION ALGORITHM
@@ -57,6 +60,7 @@ def sort_games_by_actual_order(games, elo_floor=None, tol=0.5):
 
     unsorted_games = games.copy()
     ordered = []
+    indexes = []
 
     Ra = 800  # initial rating
     games_played = 0
@@ -81,6 +85,7 @@ def sort_games_by_actual_order(games, elo_floor=None, tol=0.5):
             possible.sort(key=lambda g: abs((g[0] - Ra)))
         chosen = possible[0]
 
+        indexes.append(possible[0])
         ordered.append(chosen)
         unsorted_games.remove(chosen)
 
@@ -89,19 +94,21 @@ def sort_games_by_actual_order(games, elo_floor=None, tol=0.5):
         Ra = R_a_after
         games_played += 1
 
-    return ordered
+    return ordered, indexes
+
 
 # -------------------------------------------------------------
 # Example usage
 # -------------------------------------------------------------
 
+
 if __name__ == "__main__":
     # Example scrambled games:
     # Format: (player_final_elo, opponent_final_elo, result)
     scrambled_games = [
-        (827, 773, 1),   # win
-        (812, 788, 0),   # loss
-        (800, 800, 0.5), # draw
+        (827, 773, 1),  # win
+        (812, 788, 0),  # loss
+        (800, 800, 0.5),  # draw
     ]
 
     ordered = sort_games_by_actual_order(scrambled_games, elo_floor=700)
