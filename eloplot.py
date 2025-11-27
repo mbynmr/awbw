@@ -29,9 +29,9 @@ def plotter():
     # plot_option = 'date,elo'  # elo on date
     plot_oppelo = 1  # 0/False, 1/True
     plot_fit = 0  # 0 for False, 1+ for polynomial fit order
-    # plot_option = 'co_pick,winrate'  # winrate on co picked
+    plot_option = 'co_pick,winrate'  # winrate on co picked
     # plot_option = 'co_against,winrate'  # winrate on co against
-    # plot_option = 'co_mirror,winrate'  # winrate on co (mirror)
+    plot_option = 'co_mirror,winrate'  # winrate on co (mirror)
     # plot_option = 'tier,winrate'  # winrate on tier
     # plot_option = 'days,winrate'  # winrate on days of game
     plot_option = 'elo,donated'  # winrate on days of game
@@ -50,7 +50,7 @@ def plotter():
     league = ''  # all games
     # league = 'live+queue'
     league = 'live+league'
-    league = 'global+league'
+    # league = 'global+league'
 
     rules = ['']  # all
     rules = ['std']  # ['std', 'hf', 'fog']
@@ -772,16 +772,16 @@ def redo_sort(elo, date, oppelo, days, result, co_pick, co_against, tier):
         else:
             res = 0.5
         scrambled_games.append((int(elo[i]), int(oppelo[i]), res))  # (elo, oppelo, result)
-    ordered, indexes = sort_games_by_actual_order(scrambled_games[::-1], elo_floor=700, tol=5)
-
-    elo = elo[indexes]
-    date = date[indexes]
-    oppelo = oppelo[indexes]
-    days = days[indexes]
-    result = result[indexes]
-    co_pick = co_pick[indexes]
-    co_against = co_against[indexes]
-    tier = tier[indexes]
+    # ordered, indexes = sort_games_by_actual_order(scrambled_games[::-1], elo_floor=700, tol=50)
+    # indexes = indexes[::-1]
+    # elo = elo[indexes]
+    # date = date[indexes]
+    # oppelo = oppelo[indexes]
+    # days = days[indexes]
+    # result = result[indexes]
+    # co_pick = co_pick[indexes]
+    # co_against = co_against[indexes]
+    # tier = tier[indexes]
     return elo, date, oppelo, days, result, co_pick, co_against, tier
 
 

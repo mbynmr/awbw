@@ -1,4 +1,7 @@
 import math
+import random
+
+from game.customerrors import CustomError
 
 
 # -------------------------------------------------------------
@@ -49,8 +52,8 @@ def is_game_possible(Ra_before, game, games_played, elo_floor=None, tol=0.5):
     predicted_delta = elo_change(Ra_before, Rb_before, result, K)
 
     # Step 4: consistency check
-    if abs(predicted_delta - observed_delta) < 10:
-        print(abs(predicted_delta - observed_delta))
+    # if abs(predicted_delta - observed_delta) < 10:
+    #     print(abs(predicted_delta - observed_delta))
     return abs(predicted_delta - observed_delta) <= tol
 
 
@@ -60,43 +63,54 @@ def sort_games_by_actual_order(games, elo_floor=None, tol=0.5):
     Returns: ordered list of games
     """
 
-    unsorted_games = games.copy()
-    ordered = []
-    indexes = []
+    i = 0
+    while 1:  # return is the only exit
+        i += 1
+        try:
+            # unsorted_games = np.random.shuffle(games.copy())
+            unsorted_games = games.copy()
+            ordered = []
+            indexes = []
 
-    Ra = 800  # initial rating
-    games_played = 0
+            Ra = 800  # initial rating
+            games_played = 0
 
-    while unsorted_games:
-        possible = []
+            while unsorted_games:
 
-        # Check which games could occur at current Ra
-        for g in unsorted_games:
-            if is_game_possible(Ra, g, games_played, elo_floor, tol):
-                possible.append(g)
+                # Check which games could occur at current Ra
+                possible = []
+                for g in unsorted_games:
+                    if is_game_possible(Ra, g, games_played, elo_floor, tol):
+                        possible.append(g)
 
-        if not possible:
-            raise ValueError(
-                f"No consistent next game found at Ra={Ra}, games_played={games_played}. "
-                "Input dataset may be inconsistent or tol too small."
-            )
+                if not possible:
+                    raise CustomError(
+                        f"No consistent next game found at Ra={Ra}, games_played={games_played}. "
+                        "Input dataset may be inconsistent or tol too small."
+                    )
 
-        # If multiple possible, pick the one with the smallest rating jump.
-        # This heuristically resolves ambiguous steps.
-        if len(possible) > 1:
-            possible.sort(key=lambda g: abs((g[0] - Ra)))
-        chosen = possible[0]
+                # If multiple possible, pick the one with the smallest rating jump.
+                # This heuristically resolves ambiguous steps.
+                if len(possible) > 1:
+                    possible.sort(key=lambda g: abs((g[0] - Ra)))
+                # chosen = possible[0]
+                chosen = possible[random.choices(range(len(possible)), weights=[
+                    math.exp(-0.5 * i) for i in range(len(possible))], k=1)[0]]  # inject some randomness
 
-        indexes.append(possible[0])
-        ordered.append(chosen)
-        unsorted_games.remove(chosen)
+                # indexes.append(possible[0])
+                indexes.append(games.index(chosen))
+                ordered.append(chosen)
+                unsorted_games.remove(chosen)
 
-        # Update rating after chosen game
-        R_a_after, R_b_after, result = chosen
-        Ra = R_a_after
-        games_played += 1
+                # Update rating after chosen game
+                R_a_after, R_b_after, result = chosen
+                Ra = R_a_after
+                games_played += 1
 
-    return ordered, indexes
+            print(f"completed on atteem {i}")
+            return ordered, indexes
+        except CustomError:
+            continue
 
 
 # -------------------------------------------------------------
