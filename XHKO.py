@@ -92,7 +92,7 @@ def calc():
         else:
             repair = 0
 
-        print(f'attacker {i + 1}: {int(1 + a[2] / 10)}hp {a[1] + 100} attack {a[0]}')
+        print(f'attacker {i + 1}: {a[2]}hp {a[1] + 100} attack {a[0]}')
 
         if repair > 0:
             if repair > 99:  # edge cases when too much healing is inputted
@@ -119,7 +119,7 @@ def calc():
             # hp =  j * 10 + 5 # 5, 15, ... 95 with 10 total
             if np.sum(tally_old[(j * 10):((j * 10) + 10)]) == 0:  # if the 10 tallys in this visible hp add to 0
                 continue  # saves some time.
-            dmg_list = all_damage(base, a[1] + 100, a[2], u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl[i], bl[i])
+            dmg_list = all_damage(base, a[1] + 100, (a[2] * 10) - 1, u2Dv[i] + 100, u2Dtr[i], j * 10 + 9, gl[i], bl[i])
             # plt.plot(np.unique(dmg_list, return_counts=True)[0], np.unique(dmg_list, return_counts=True)[1])
             # plt.show()
             for k in range(10):  # apply damage to every defender hp
@@ -175,7 +175,7 @@ def calc():
         else:
             print(f'min possible health after attack: {np.amin(plot_hp[np.argwhere(tally > 0)]):.2g}')
         plt.plot(plot_hp[np.nonzero(tally)], 100 * tally[np.nonzero(tally)] / np.sum(tally), '.',
-                 label=f'{i + 1}: {int(1 + a[2] / 10)}hp {a[1]} {a[0]}')
+                 label=f'{i + 1}: {a[2]}hp {a[1]} {a[0]}')
 
     plt.xlabel('hp (-1 = dead)')
     plt.ylabel('% of results')
@@ -224,12 +224,9 @@ def known_hp():
 
 def attackers():  # don't do more than ~16 attacks with normal luck if most stay alive. numbers get big.
     return [
-        ['inf', 0, 99],
-        ['inf', 0, 99],
-        ['tank', 0, 19],
-        # ['inf', 10, 99],
-        # ['aa', 20, 9],
-        # ['bcopter', 10, 99],
+        ['inf', 0, 10],
+        ['inf', 0, 10],
+        ['tank', 0, 2],
     ]
     # ['tank', 10, 99],  # full hp andy tank with 1 tower
     # ['aa', 10, 99],
