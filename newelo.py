@@ -11,12 +11,19 @@ def plotter_standings_new():
     xls = pd.ExcelFile(input_file)
     sheets = sorted(xls.sheet_names)
     tracker = np.zeros(len(sheets))
+    tracker2 = np.zeros(len(sheets))
+    percentile = 99
+    top = 50
     for i, sheet in enumerate(sheets):
         df = pd.read_excel(input_file, sheet_name=sheet)
         all_ratings = np.array(list(df.get('Rating')))
         # tracker[i] = np.mean(all_ratings)
-        tracker[i] = np.percentile(all_ratings, 99.5)
+        tracker[i] = np.percentile(all_ratings, percentile)
+        tracker2[i] = all_ratings[top]
+    print(f"percentile top {percentile}%")
     print(tracker)
+    print(f"raw top {top}")
+    print(tracker2)
 
 
 def fetch_monthly_matches(start_date, end_date):
