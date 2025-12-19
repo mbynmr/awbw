@@ -15,7 +15,7 @@ import pandas as pd
 import itertools as iter
 
 from fitting import fit
-from AIsortinglol import sort_games_by_actual_order
+from AIsortinglol import sort_games_by_actual_order, reorder_with_dates
 
 """
 run plotter() and freely change variables
@@ -55,6 +55,7 @@ def plotter():
     rules = ['']  # all
     rules = ['std']  # ['std', 'hf', 'fog']
     names = ['ncghost12']
+    # ['new1234', 'ncghost12', 'srthgv', 'Chloe Box', 'Po1and'] deej po2and
     # ['WealthyTuna', 'new1234', 'hunch', 'Po1and', 'Po2and', 'BongoBanjo']
     # ['Grimm Guy', 'Grimm Girl', 'J.Yossarian']
     # ['High Funds High Fun', 'Po1and', 'Po2and', 'new1234', 'WealthyTuna', 'Spidy400']
@@ -729,6 +730,22 @@ def extract_elo(s):
         tier[i] = row[3][2:]
         days[i] = int(row[4])
         oppname[i] = str(row[3 + (3 * (2 if player == 1 else 1))])[1:]
+    return elo, date, oppelo, days, result, co_pick, co_against, tier, oppname
+
+
+def redo_sort_new_bad(elo, date, oppelo, days, result, co_pick, co_against, tier, oppname):
+
+    indexes = reorder_with_dates(player_elo=elo, opp_elo=oppelo, result=result, dates=date,
+                                 allow_cross_day_swaps=False)
+    elo = [elo[i] for i in indexes]
+    date = [date[i] for i in indexes]
+    oppelo = [oppelo[i] for i in indexes]
+    days = [days[i] for i in indexes]
+    result = [result[i] for i in indexes]
+    co_pick = [co_pick[i] for i in indexes]
+    co_against = [co_against[i] for i in indexes]
+    tier = [tier[i] for i in indexes]
+    oppname = [oppname[i] for i in indexes]
     return elo, date, oppelo, days, result, co_pick, co_against, tier, oppname
 
 
