@@ -5,20 +5,21 @@ from PIL import Image
 # from tqdm import tqdm
 
 
-# outputs/pics/maxquality.png shouldn't get edited
+# todo customise palette
+# todo Oklab colour space matching
+# outputs/pics/maxquality.png shouldn't get edited (nelldoro)
 # backup in case: https://media.discordapp.net/stickers/1374624356373626900.webp?size=160&quality=lossless
 
-# todo
-#  find palette
-#  threshold to palette with an arbitrary range, doesn't matter much
-#  create mockup output of what the image would look like on the site afterwards
-#  customise palette
-#  repeat manually :D
 
 def pixel_art():
-    folder = 'outputs/pics/nelldoro/'
-    pic = "maxquality.png"
-    dims = (32, 32)
+    folder = 'outputs/pics/'
+    pic = "nelldoro/maxquality.png"
+    # pic = "nooo_whyyy/1007135137391194223.webp"
+    pic = "auto/opticalillus.png"
+    dims = (48, 48)
+    # # manual scaling
+    scale = 1920 / 50  # 50 is max scale
+    dims =  (int(1920 / scale), int(1799 / scale))
 
     scaling_img(folder + pic, dims)
     img = mpimg.imread(folder + pic.split('.png')[0] + f'{dims[0]}x{dims[1]}.png')
@@ -27,13 +28,29 @@ def pixel_art():
               'PC', 'TG', 'PL', 'AR', 'WN', 'AA', 'NE', 'SC']
     palette = make_palette(armies)
     selection = convert_to_palette(img, palette)
-    np.savetxt(folder + "atteem1.txt", selection, fmt='%.0f')
+    # np.savetxt(folder + "atteem1.txt", selection, fmt='%.0f')
     tiles = ['plain', 'mtn', 'forest', 'river', 'road', 'sea', 'shoal', 'reef', 'pipe', 'miss', 'tele', 'neu', *armies]
     # print(tiles)
-    dic = {}
-    for i in range(len(tiles)):
-        dic.update({i: tiles[i]})
-    print(dic)
+    # dic = {}
+    # for i in range(len(tiles)):
+    #     dic.update({i: tiles[i]})
+    # print(dic)
+    selection_redone = np.zeros_like(selection)
+    conversion_1 = [
+        1,2,3,4,17,29,33,101,112,195,34,38,43,48,53,91,81,86,96,119,124,151,158,165,172,183,190,198,205,212,219
+    ]
+    conversion_2 = [
+        1,2,3,4,15,28,29,33,101,112,195,34,38,43,48,53,91,81,86,96,119,124,151,158,165,172,183,190,198,205,212,219
+    ]  # idk, redone, idk.
+    conversion_3 = [
+        1, 2, 3, 4, 15, 28, 29, 33, 101, 112, 195, 34, 38, 43, 48, 53, 91, 81, 86, 96,  # 96 bd, 119 ab
+        119, 124, 151, 158, 165, 172, 183, 190, 198, 205, 212, 219
+    ]
+    conversion = conversion_3
+    for i in range(len(conversion)):
+        selection_redone = np.where(i == selection, conversion[i], selection_redone)
+    np.savetxt(folder + "OMGITWORKS.csv", selection_redone, fmt='%.0f', delimiter=',')
+    #
     # guide = [tiles[e] for e in selection]
     # np.savetxt(folder + "atteem2.csv", guide)
 
@@ -43,7 +60,7 @@ def pixel_art():
 def scaling_img(imgpath, dims):
     img = Image.open(imgpath)
     resized_img = img.resize(dims)
-    resized_img.save(imgpath.split('.png')[0] + '32x32.png')
+    resized_img.save(imgpath.split('.png')[0] + f'{dims[0]}x{dims[1]}.png')
 
 
 def make_palette(armies):
