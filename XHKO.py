@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 # from tqdm import tqdm
+import warnings
 
 from game.fire import base_damage
 
@@ -74,6 +75,7 @@ def calc():
     dead_old = 0
     ko_cum = 0
     repair = 0
+    brokenbig = False
 
     for i, a in enumerate(attacks):
         if i + 1 in heals:
@@ -128,10 +130,24 @@ def calc():
                     continue  # saves some more time.
                 for dmg in dmg_list:
                     hp = hp_old - int(dmg)
-                    if hp >= 0:
-                        tally[hp] += tally_old[hp_old]
-                    else:
-                        dead += tally_old[hp_old]
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings('error')
+                        try:
+                            if hp >= 0:
+                                tally[hp] += tally_old[hp_old]
+                            else:
+                                dead += tally_old[hp_old]
+                        except RuntimeWarning:  # numbers so big it breaks
+                            print(f'numbers got too big. script breaks on attack {i + 1}')
+                            brokenbig = True
+                    if brokenbig:
+                        break
+                if brokenbig:
+                    break
+            if brokenbig:
+                break
+        if brokenbig:
+            break
 
         if i + 1 in known_hp_dict:
             set_hp = known_hp_dict[i + 1]
@@ -177,7 +193,7 @@ def calc():
         plt.plot(plot_hp[np.nonzero(tally)], 100 * tally[np.nonzero(tally)] / np.sum(tally), '.',
                  label=f'{i + 1}: {a[2]}hp {a[1]} {a[0]}')
 
-    plt.xlabel('hp (-1 = dead)')
+    plt.xlabel('hp (0-99 is alive, below 0 is dead)')
     plt.ylabel('% of results')
     plt.xlim(left=0, right=99)
     plt.xticks(np.arange(0, 99 + 1, 10))
@@ -257,3 +273,12 @@ def attackers():  # don't do more than ~16 attacks with normal luck if most stay
     # ['inf', 10, 39],
     # ['inf', 10, 19],
     # ['tank', 10, 69],
+
+    # https://www.youtube.com/watch?v=V4qESu87XbQ
+    # {-1: 6, 2: 4, 3: 3, -4: 7, -5: 2}
+    # ['inf', 30, 5],
+    # ['tank', 30, 10],
+    # ['inf', 30, 10],
+    # ['inf', 50, 4],
+    # ['tank', 50, 8],
+    # ['inf', 50, 10],
